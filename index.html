@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FXデモトレード</title>
+<meta name="theme-color" content="#24476b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FXデモ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0} img{max-width:100%} [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+/* Layout: 国内FXアプリ風 — 紺のアプリバー、白いカード、売=青・買=赤。狭い画面では下部タブで画面を切り替え */
+:root{
+  --bg:#eceff3; --panel:#ffffff; --panel2:#f4f6f9; --line:#dde2e9; --fg:#1b2430; --muted:#687384;
+  --bar:#24476b; --bar2:#1c3956; --on-bar:#ffffff; --on-bar-dim:rgba(255,255,255,.72);
+  --accent:#ec8a14; --on-accent:#ffffff;
+  --buy:#d8393a; --sell:#2463c9; --buy-bg:#fdecec; --sell-bg:#eaf1fd;
+  --up:#d8393a; --down:#2463c9; --up-bg:#fdecec; --down-bg:#eaf1fd;
+  --scrim:rgba(18,28,40,.42);
+  --font-ui:"Noto Sans JP","Hiragino Sans","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  --font-num:"Roboto","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0e131a; --panel:#161d26; --panel2:#1c2530; --line:#2a3542; --fg:#e3e9ef; --muted:#8c99a8;
+  --bar:#182c44; --bar2:#122337; --on-bar:#ffffff; --on-bar-dim:rgba(255,255,255,.7);
+  --accent:#f0962a; --on-accent:#1a1206;
+  --buy:#f06464; --sell:#5b98ff; --buy-bg:rgba(240,100,100,.14); --sell-bg:rgba(91,152,255,.14);
+  --up:#f06464; --down:#5b98ff; --up-bg:rgba(240,100,100,.14); --down-bg:rgba(91,152,255,.14);
+  --scrim:rgba(0,0,0,.6); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --panel:#161d26; --panel2:#1c2530; --line:#2a3542; --fg:#e3e9ef; --muted:#8c99a8;
+  --bar:#182c44; --bar2:#122337; --on-bar:#ffffff; --on-bar-dim:rgba(255,255,255,.7);
+  --accent:#f0962a; --on-accent:#1a1206;
+  --buy:#f06464; --sell:#5b98ff; --buy-bg:rgba(240,100,100,.14); --sell-bg:rgba(91,152,255,.14);
+  --up:#f06464; --down:#5b98ff; --up-bg:rgba(240,100,100,.14); --down-bg:rgba(91,152,255,.14);
+  --scrim:rgba(0,0,0,.6); color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:14px;line-height:1.5}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+button{font-family:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* アプリバー */
+.appbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bar);color:var(--on-bar);border-bottom:3px solid var(--accent)}
+.appbar-in{max-width:1360px;margin:0 auto;padding-inline:16px;padding-block:8px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.04em}
+.mark{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:var(--accent);color:var(--on-accent);font:700 12px var(--font-num);letter-spacing:-.02em}
+.badge{font-size:10px;letter-spacing:.1em;border:1px solid var(--on-bar-dim);color:var(--on-bar-dim);padding:0 6px;border-radius:3px;font-weight:700}
+.clock{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--on-bar-dim)}
+.clock b{font:500 13px var(--font-num);color:var(--on-bar)}
+.hours{font-size:10.5px;color:var(--on-bar-dim);white-space:nowrap}
+.sess{background:var(--bar2);border-radius:999px;padding:0 9px;font-size:11px;color:var(--on-bar)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls .lbl{font-size:12px;color:var(--on-bar-dim)}
+.appbar .seg{border-color:rgba(255,255,255,.25)}
+.appbar .seg button{background:transparent;color:var(--on-bar-dim)}
+.appbar .seg button+button{border-left-color:rgba(255,255,255,.25)}
+.appbar .seg button[aria-pressed="true"]{background:var(--on-bar);color:var(--bar)}
+.barbtn{background:transparent;color:var(--on-bar);border:1px solid rgba(255,255,255,.35);border-radius:6px;padding:5px 11px;font:500 12px var(--font-ui);cursor:pointer}
+.barbtn:hover{background:var(--bar2)}
+
+.app{max-width:1360px;margin:0 auto;padding-inline:16px;padding-block:12px 40px;display:flex;flex-direction:column;gap:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:var(--panel);color:var(--muted);border:0;padding:5px 10px;font:500 12px var(--font-ui);cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--bar);color:var(--on-bar)}
+.seg.side button[data-v="-1"][aria-pressed="true"]{background:var(--sell);color:#fff}
+.seg.side button[data-v="1"][aria-pressed="true"]{background:var(--buy);color:#fff}
+.btn{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font:500 12px var(--font-ui);cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.primary{background:var(--accent);color:var(--on-accent);border:0;border-radius:6px;padding:11px 14px;font:700 14px var(--font-ui);cursor:pointer;width:100%;letter-spacing:.04em}
+.primary:hover{filter:brightness(1.06)}
+
+/* 口座サマリー */
+.acct{display:flex;flex-direction:column}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+.stat{padding:9px 14px;display:flex;flex-direction:column;gap:1px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat span{font-size:11px;color:var(--muted)}
+.stat b{font:500 17px var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat small{font:11px var(--font-num);color:var(--muted)}
+.acct-foot{display:none}
+
+.grid{display:grid;grid-template-columns:270px minmax(0,1fr) 322px;gap:12px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0;overflow:hidden}
+.panel-h{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel2);font-size:12px;color:var(--muted);gap:8px}
+.panel-h > span:first-child,.panel-h .ttl{font-weight:700;color:var(--fg);font-size:13px}
+
+/* レート一覧 */
+.watch{list-style:none;margin:0;padding:0}
+.watch li+li{border-top:1px solid var(--line)}
+.watch li button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:1fr auto;gap:4px 8px;padding:8px 12px;cursor:pointer;border-left:3px solid transparent}
+.watch li button:hover{background:var(--panel2)}
+.watch li button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.watch li button[aria-current="true"]{background:var(--panel2);border-left-color:var(--accent)}
+.watch .nm{font-weight:700;font-size:13px}
+.watch .nm i{font-style:normal;font:11px var(--font-num);color:var(--muted);margin-left:6px}
+.watch .chg{font:12px var(--font-num);text-align:right}
+.watch .q{grid-column:1/-1;display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:6px}
+.watch .q > span{display:flex;align-items:baseline;justify-content:space-between;gap:6px;border-radius:4px;padding:3px 8px;font:500 15px var(--font-num);font-variant-numeric:tabular-nums}
+.watch .q > span::before{font:700 10px var(--font-ui)}
+.watch .q .qb{background:var(--sell-bg)} .watch .q .qb::before{content:"売";color:var(--sell)}
+.watch .q .qa{background:var(--buy-bg)} .watch .q .qa::before{content:"買";color:var(--buy)}
+.watch .q i{align-self:center;font:11px var(--font-num);font-style:normal;color:var(--muted)}
+
+/* チャート */
+.chart-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.chart-top strong{font-size:14px;color:var(--fg)}
+.ohlc{font:11px var(--font-num);color:var(--muted);padding:6px 14px 0;min-height:22px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-wrap{position:relative;height:400px}
+canvas{display:block;width:100%;height:100%;cursor:crosshair}
+
+/* 注文 */
+.ticket{padding:0 0 14px;display:flex;flex-direction:column;gap:11px}
+.ticket > :not(.panel-h){margin-inline:14px}
+.ticket-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.ticket-head strong{font-size:15px}
+.board-lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.sides{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:stretch}
+.sides .spr{align-self:center;text-align:center;font:500 13px var(--font-num);color:var(--fg);line-height:1.2}
+.sides .spr small{display:block;font:10px var(--font-ui);color:var(--muted)}
+.side{border:0;border-radius:6px;padding:7px 6px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;color:#fff;transition:filter .12s}
+.side:hover{filter:brightness(1.08)}
+.side:active{filter:brightness(.9)}
+.side span{font-size:12px;font-weight:700;letter-spacing:.1em}
+.side.sell{background:var(--sell)}
+.side.buy{background:var(--buy)}
+.px{font-family:var(--font-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.px .ph{font-size:14px}
+.px .pb{font-size:28px;font-weight:700;line-height:1}
+.px sup{font-size:13px;vertical-align:top;position:relative;top:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input[type=number],select,input[type=datetime-local]{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:500 14px var(--font-num);width:100%}
+input[type=datetime-local]{font-size:13px}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chips button{flex:1;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px;font:500 12px var(--font-num);cursor:pointer;white-space:nowrap}
+.chips button:hover{border-color:var(--muted)}
+.two,.qrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hint{font-size:11.5px;color:var(--muted);margin:0}
+.frow{display:flex;flex-direction:column;gap:5px}
+.frow > .lbl{font-size:12px;color:var(--muted)}
+.leg{border:1px solid var(--line);border-radius:6px;padding:9px 10px;display:flex;flex-direction:column;gap:8px;background:var(--panel2)}
+.leg h4{margin:0;font-size:12px;color:var(--fg)}
+.divider{border-top:1px solid var(--line)}
+.tabs2{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.tabs2 button{flex:1;background:var(--panel2);border:0;color:var(--muted);font:500 12px var(--font-ui);padding:6px 4px;cursor:pointer}
+.tabs2 button+button{border-left:1px solid var(--line)}
+.tabs2 button[aria-pressed="true"]{background:var(--panel);color:var(--bar);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent)}
+.closebar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--accent);border-radius:6px;padding:7px 10px;font-size:12px}
+.linkbtn{background:none;border:0;color:var(--accent);font:700 12px var(--font-ui);cursor:pointer;padding:0;white-space:nowrap}
+.confirm{display:flex;flex-direction:column;gap:10px}
+.confirm dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+.confirm dt{color:var(--muted)}
+.confirm dd{margin:0;font-family:var(--font-num);text-align:right}
+.chk{flex-direction:row;align-items:center;gap:6px}
+.err{color:var(--buy);font-size:12px;margin:0}
+.psum{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.psum div{border-radius:6px;padding:6px 9px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column}
+.psum div:first-child{background:var(--sell-bg)} .psum div:last-child{background:var(--buy-bg)}
+.psum div > span:first-child{font-weight:700}
+.psum div:first-child > span:first-child{color:var(--sell)} .psum div:last-child > span:first-child{color:var(--buy)}
+.psum b{font:500 14px var(--font-num);color:var(--fg)}
+.psum span{font-family:var(--font-num)}
+.closeouts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.closeouts .btn{padding:6px 4px}
+#coSell{color:var(--sell);border-color:var(--sell)} #coBuy{color:var(--buy);border-color:var(--buy)}
+kbd{font:500 11px var(--font-num);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 4px;color:var(--fg);background:var(--panel)}
+
+/* 照会 */
+.tabs{display:flex;gap:2px;flex-wrap:wrap}
+.tabs button{background:none;border:0;color:var(--muted);font:500 13px var(--font-ui);padding:4px 8px;cursor:pointer;border-bottom:2px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--fg);font-weight:700;border-bottom-color:var(--accent)}
+.tabs b{font:500 11px var(--font-num);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:4px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:860px}
+th,td{padding:7px 11px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{font-size:11px;font-weight:500;color:var(--muted);background:var(--panel2)}
+th.l,td.l{text-align:left}
+td{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-size:13px}
+td.jp{font-family:var(--font-ui)}
+tbody tr:hover td{background:var(--panel2)}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font:700 11px var(--font-ui);padding:0 8px;border-radius:3px;color:#fff}
+.pill.b{background:var(--buy)} .pill.s{background:var(--sell)}
+.rowbtn{background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:5px;padding:2px 10px;font:500 12px var(--font-ui);cursor:pointer}
+.rowbtn:hover{border-color:var(--accent);color:var(--accent)}
+.empty{padding:26px 14px;text-align:center;color:var(--muted);font-size:13px}
+.sum{padding:8px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--bar);color:var(--on-bar);padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px);z-index:30}
+.ov{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-start;justify-content:center;padding:calc(40px + env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto;z-index:20}
+.dlg{background:var(--panel);border-radius:10px;width:100%;max-width:440px;padding:18px;display:flex;flex-direction:column;gap:16px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.dlg h2{margin:0;font-size:17px}
+.dlg h3{margin:0 0 4px;font-size:13px}
+.dlg section{display:flex;flex-direction:column;gap:8px}
+.dlg p{margin:0}
+.foot{font-size:11.5px;color:var(--muted);margin:0}
+
+/* 下部タブ（スマホ幅のみ） */
+.tabbar{display:none}
+
+@media (max-width:1100px){
+  .grid{grid-template-columns:minmax(0,1fr) 322px}
+  .watch-panel{grid-column:1/-1}
+  .watch{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+  .watch li+li{border-top:0}
+  .watch li{border-bottom:1px solid var(--line)}
+}
+@media (max-width:760px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .chart-wrap{height:300px}
+  .stat{border-right:0;border-bottom:1px solid var(--line)}
+  .controls .lbl,.clock .sess{display:none}
+  .hours{white-space:normal;flex-basis:100%}
+  [data-sec]{display:none!important}
+  [data-sec].on{display:flex!important}
+  .watch-panel.on,.chart-panel.on,.list-panel.on{display:block!important}
+  .watch{grid-template-columns:1fr}
+  .acct-foot{display:block;padding:12px 14px}
+  .app{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+  .tabbar button{background:none;border:0;color:var(--muted);font:500 10.5px var(--font-ui);padding:7px 0 6px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+  .tabbar svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7}
+  .tabbar button[aria-current="true"]{color:var(--bar)}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:760px) and (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .tabbar button[aria-current="true"]{color:var(--accent)} }
+:root[data-theme="dark"] .tabbar button[aria-current="true"]{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header class="appbar">
+  <div class="appbar-in">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">FX</span><h1>FXデモ口座</h1><span class="badge">DEMO</span>
+      <div class="clock"><b id="clk">—</b><span class="sess" id="sess">—</span><span class="hours" id="hours"></span></div>
+    </div>
+    <div class="controls">
+      <span class="lbl">時間の速さ</span>
+      <div class="seg" id="speedSeg" role="group" aria-label="時間の速さ">
+        <button data-s="0" aria-pressed="false">停止</button>
+        <button data-s="1" aria-pressed="true">実時間</button>
+        <button data-s="10" aria-pressed="false">×10</button>
+        <button data-s="60" aria-pressed="false">×60</button>
+        <button data-s="300" aria-pressed="false">×300</button>
+      </div>
+      <button class="barbtn" id="openSettings">口座設定</button>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <section class="panel acct" data-sec="acct" aria-label="証拠金状況">
+    <div class="panel-h"><span>口座状況</span><span>証拠金</span></div>
+    <div class="stats">
+      <div class="stat"><span>預託証拠金</span><b class="num" id="sBal">—</b></div>
+      <div class="stat"><span>評価損益</span><b class="num" id="sPnl">—</b></div>
+      <div class="stat"><span>有効証拠金</span><b class="num" id="sEq">—</b></div>
+      <div class="stat"><span>必要証拠金</span><b class="num" id="sMar">—</b></div>
+      <div class="stat"><span>発注可能額</span><b class="num" id="sFree">—</b></div>
+      <div class="stat"><span>証拠金維持率</span><b class="num" id="sLvl">—</b><small id="sLc"></small></div>
+    </div>
+    <div class="acct-foot"><button class="primary" id="openSettings2">口座設定・入出金・ロスカット率</button></div>
+  </section>
+
+  <div class="grid">
+    <aside class="panel watch-panel" data-sec="rate">
+      <div class="panel-h"><span>レート一覧</span><span>売（BID）・スプレッド・買（ASK）</span></div>
+      <ul class="watch" id="watch"></ul>
+    </aside>
+
+    <section class="panel chart-panel" data-sec="chart">
+      <div class="panel-h">
+        <div class="chart-top"><strong id="cPair">USD/JPY</strong><span>BIDチャート・MA20</span></div>
+        <div class="seg" id="tfSeg" role="group" aria-label="足種">
+          <button data-tf="1" aria-pressed="true">1分</button>
+          <button data-tf="5" aria-pressed="false">5分</button>
+          <button data-tf="15" aria-pressed="false">15分</button>
+          <button data-tf="60" aria-pressed="false">1時間</button>
+          <button data-tf="240" aria-pressed="false">4時間</button>
+        </div>
+      </div>
+      <div class="ohlc" id="ohlc"></div>
+      <div class="chart-wrap"><canvas id="chart" aria-label="ローソク足チャート"></canvas></div>
+    </section>
+
+    <section class="panel ticket" data-sec="trade" aria-label="注文">
+      <div class="panel-h"><span class="ttl">取引</span><span class="num" id="tHL"></span></div>
+      <div class="ticket-head"><strong id="tName"></strong></div>
+      <div class="board-lbl"><span>2WAY（タップで発注）</span><span><kbd>S</kbd> 売　<kbd>B</kbd> 買</span></div>
+      <div class="sides">
+        <button class="side sell" id="sellBtn"><span>売</span><div class="px" id="tBid"></div></button>
+        <div class="spr"><span id="tSpr"></span><small id="tSprU"></small></div>
+        <button class="side buy" id="buyBtn"><span>買</span><div class="px" id="tAsk"></div></button>
+      </div>
+      <div class="qrow">
+        <label for="unit">取引単位<select id="unit"></select></label>
+        <label for="mult">取引倍率<input id="mult" type="number" min="1" step="1" value="10"></label>
+      </div>
+      <div class="chips" id="multChips"><button data-m="1">×1</button><button data-m="5">×5</button><button data-m="10">×10</button><button data-m="50">×50</button></div>
+      <p class="hint num" id="qtyEq"></p>
+      <label for="slip">許容スリッページ（<span id="slipU">銭</span>・空欄は指定なし）<input id="slip" type="number" min="0" step="0.1" placeholder="指定なし"></label>
+      <p class="hint num" id="mHint"></p>
+      <div class="psum" id="psum"></div>
+      <div class="closeouts"><button class="btn" id="coSell">売全決済</button><button class="btn" id="coAll">全決済</button><button class="btn" id="coBuy">買全決済</button></div>
+      <div class="divider"></div>
+      <div id="formArea"></div>
+    </section>
+  </div>
+
+  <section class="panel list-panel" data-sec="list">
+    <div class="panel-h">
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="pos">建玉一覧<b id="cntPos">0</b></button>
+        <button role="tab" aria-selected="false" data-tab="sum">建玉サマリー</button>
+        <button role="tab" aria-selected="false" data-tab="ord">注文照会<b id="cntOrd">0</b></button>
+        <button role="tab" aria-selected="false" data-tab="hist">約定履歴</button>
+      </div>
+      <div><button class="btn" id="closeAll">全建玉を決済</button><button class="btn" id="cancelAll" hidden>全注文取消</button></div>
+    </div>
+    <div class="tbl-wrap" id="posWrap"></div>
+    <div class="tbl-wrap" id="sumWrap" hidden></div>
+    <div class="tbl-wrap" id="ordWrap" hidden></div>
+    <div id="histWrap" hidden></div>
+  </section>
+  <p class="foot">レートはこのページが生成するシミュレーションで、実際の相場ではありません。週末も練習用に相場が動きます。注文パターン・取引単位と倍率・有効期限・個別決済と一括決済・全決済・許容スリッページ・レバレッジ25倍・ロスカット率設定は、国内ネット証券のFXアプリの仕様に合わせています。取引パスワードの入力は省いています。</p>
+</div>
+
+<nav class="tabbar" id="tabbar" aria-label="画面切り替え">
+  <button data-go="rate" aria-current="true"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>レート</button>
+  <button data-go="chart" aria-current="false"><svg viewBox="0 0 24 24"><path d="M7 4v16M17 6v14M4 9h6v7H4zM14 9h6v6h-6z"/></svg>チャート</button>
+  <button data-go="trade" aria-current="false"><svg viewBox="0 0 24 24"><path d="M7 4v16l-3-3M17 20V4l3 3"/></svg>取引</button>
+  <button data-go="list" aria-current="false"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7"/></svg>照会</button>
+  <button data-go="acct" aria-current="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>口座</button>
+</nav>
+
+<div class="ov" id="ov" hidden>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="ovT">
+    <h2 id="ovT">口座設定</h2>
+    <section>
+      <h3>開始残高を決める</h3>
+      <p class="hint">入力した金額でデモ口座を作り直します。建玉・注文・約定履歴はリセットされます。</p>
+      <label for="dep">開始残高（円）<input id="dep" type="number" min="10000" max="1000000000" step="10000" value="1000000"></label>
+      <div class="chips" id="depChips">
+        <button data-v="100000">10万</button><button data-v="300000">30万</button><button data-v="500000">50万</button><button data-v="1000000">100万</button><button data-v="3000000">300万</button><button data-v="10000000">1000万</button>
+      </div>
+      <button class="primary" id="depGo">この残高で始める</button>
+      <p class="err" id="depErr" hidden></p>
+    </section>
+    <section id="cashSec">
+      <h3>入金・出金</h3>
+      <p class="hint">建玉を残したまま残高を増減します。出金は発注可能額までです。</p>
+      <label for="cash">金額（円）<input id="cash" type="number" min="1000" step="1000" value="100000"></label>
+      <div class="two"><button class="btn" id="inBtn">入金する</button><button class="btn" id="outBtn">出金する</button></div>
+      <p class="err" id="cashErr" hidden></p>
+    </section>
+    <section>
+      <h3>ロスカット率</h3>
+      <label for="lcr">証拠金維持率がこの値以下になると、全建玉を成行で決済します
+        <select id="lcr"><option>30</option><option>40</option><option selected>50</option><option>60</option><option>70</option><option>80</option><option>90</option></select>
+      </label>
+    </section>
+    <button class="btn" id="ovClose">閉じる</button>
+  </div>
+</div>
+<div class="ov" id="cf" hidden>
+  <div class="dlg" role="alertdialog" aria-modal="true" aria-labelledby="cfT">
+    <h2 id="cfT"></h2><p id="cfB"></p>
+    <div class="two"><button class="btn" id="cfNo">やめる</button><button class="primary" id="cfYes"></button></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const MIN=60000, DAY=86400000, JST=9*3600000, HIST_MIN=14400, LEV=25, KEY='fxdemo-v2';
+const YEAR_SEC=252*86400;
+
+/* ================= 相場エンジン =================
+   4つの基軸レート（USD/JPY, EUR/USD, GBP/USD, AUD/USD）を
+   ドル要因・リスク要因・個別要因で相関させて動かし、クロス円は掛け算で算出。
+   ・ファットテール（t分布） ・ボラティリティの集中（GARCH）
+   ・時間帯別の活発さ（東京/ロンドン/NY） ・指標発表時の急変動とスプレッド拡大
+   ・ティックは不規則な間隔で到着、0.1pips刻みで提示 */
+const F={
+  UJ:{p:147.800,vol:.080,L:[.50,.45,.74,0,0,0]},
+  EU:{p:1.16500,vol:.065,L:[-.70,0,0,.714,0,0]},
+  GU:{p:1.34200,vol:.075,L:[-.60,0,0,.30,.742,0]},
+  AU:{p:0.65800,vol:.085,L:[-.50,.55,0,0,0,.67]},
+};
+const FK=Object.keys(F);
+FK.forEach(k=>{const f=F[k];f.base=f.p;f.h=1;f.d=0;f.acc=0;f.ss=f.vol/Math.sqrt(YEAR_SEC);});
+
+const PAIRS=[
+  {s:'USD/JPY',n:'米ドル/円',jpy:true,spr:.2,f:()=>F.UJ.p},
+  {s:'EUR/JPY',n:'ユーロ/円',jpy:true,spr:.5,f:()=>F.EU.p*F.UJ.p},
+  {s:'GBP/JPY',n:'ポンド/円',jpy:true,spr:1.0,f:()=>F.GU.p*F.UJ.p},
+  {s:'AUD/JPY',n:'豪ドル/円',jpy:true,spr:.6,f:()=>F.AU.p*F.UJ.p},
+  {s:'EUR/USD',n:'ユーロ/米ドル',jpy:false,spr:.4,f:()=>F.EU.p},
+  {s:'GBP/USD',n:'ポンド/米ドル',jpy:false,spr:.9,f:()=>F.GU.p},
+  {s:'AUD/USD',n:'豪ドル/米ドル',jpy:false,spr:.5,f:()=>F.AU.p},
+];
+PAIRS.forEach(p=>{p.pip=p.jpy?.01:.0001;p.d=p.jpy?3:5;p.tick=p.pip/10;p.u=p.jpy?'銭':'pips';p.bars=[];p.cur=null;p.dir=0;p.bid=0;p.ask=0;});
+const BY=Object.fromEntries(PAIRS.map(p=>[p.s,p]));
+
+function gauss(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function t4(){const z=gauss();let c=0;for(let i=0;i<4;i++){const g=gauss();c+=g*g;}return z/Math.sqrt(c/4)/Math.SQRT2;}
+function poisson(l){if(l>30)return Math.max(0,Math.round(l+Math.sqrt(l)*gauss()));const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+
+const SESS=[1.25,1.1,.8,.6,.5,.45,.35,.45,.75,1.05,.9,.7,.6,.65,.75,.95,1.2,1.25,1.1,1.0,1.05,1.55,1.6,1.45];
+const hourJ=t=>(((t+JST)/3600000)%24+24)%24;
+function sess(t){const h=hourJ(t),i=Math.floor(h),fr=h-i;return SESS[i]*(1-fr)+SESS[(i+1)%24]*fr;}
+function jp(t){const d=new Date(t+JST);return{mo:d.getUTCMonth()+1,da:d.getUTCDate(),h:d.getUTCHours(),mi:d.getUTCMinutes(),s:d.getUTCSeconds(),wd:d.getUTCDay()};}
+const p2=n=>String(n).padStart(2,'0');
+const WD='日月火水木金土';
+
+let simT=0,newsUntil=0,curMin=0,sinceTick=0;
+
+function advance(dt){
+  if(dt<=0)return;
+  const s=sess(simT),sq=Math.sqrt(dt),z=[t4(),t4(),t4(),t4(),t4(),t4()];
+  for(const k of FK){
+    const f=F[k];let e=0;for(let i=0;i<6;i++)e+=f.L[i]*z[i];
+    const sh=Math.sqrt(f.h);
+    const ret=(f.d-1e-6*Math.log(f.p/f.base))*dt+f.ss*sq*s*sh*e;
+    f.p*=Math.exp(ret);f.acc+=e*sq*sh;
+  }
+}
+function minute(tm){
+  for(const k of FK){const f=F[k];const e2=f.acc*f.acc/60;
+    f.h=Math.min(3.5,Math.max(.35,.02+.05*e2+.93*f.h));f.acc=0;f.d=.985*f.d+gauss()*.0011*f.ss;}
+  const j=jp(tm),hm=j.h*100+j.mi,s=sess(tm);let J=0,idx=0;
+  if(hm===2130&&Math.random()<.6)J=5+Math.random()*15;
+  else if(hm===2300&&Math.random()<.35)J=3+Math.random()*8;
+  else if(hm===1030&&Math.random()<.3){J=3+Math.random()*5;idx=1;}
+  else if(Math.random()<.0003*s){J=2.5+Math.random()*5;idx=Math.random()<.7?0:1;}
+  if(J){
+    const sg=Math.random()<.5?-1:1;J*=sg;
+    for(const k of FK){const f=F[k],l=f.L[idx];if(!l)continue;
+      const sh=l*J*Math.sqrt(60)*Math.sqrt(f.h);f.p*=Math.exp(f.ss*sh);f.acc+=sh*.35;f.d+=l*sg*.012*f.ss;}
+    newsUntil=tm+120000;
+  }
+}
+function checkMinute(){const m=Math.floor(simT/MIN);while(curMin<m){curMin++;minute(curMin*MIN);}}
+function sprMult(t){const h=hourJ(t);let m=1;if(h>=5&&h<6)m=1.6;else if(h>=6&&h<7)m=4+2*Math.sin(t/37000);else if(h>=7&&h<8)m=2;if(t<newsUntil)m*=3;return m;}
+function quote(p){
+  const mid=p.f(),sp=Math.max(p.spr,Math.round(p.spr*sprMult(simT)*10)/10);
+  const b=+(Math.round((mid-sp*p.pip/2)/p.tick)*p.tick).toFixed(p.d);
+  if(p.bid)p.dir=b>p.bid?1:b<p.bid?-1:p.dir;
+  p.bid=b;p.ask=+(b+sp*p.pip).toFixed(p.d);p.mid=(p.bid+p.ask)/2;p.sprNow=sp;
+}
+function bar(p,t){
+  const m=Math.floor(t/MIN)*MIN;
+  if(!p.cur||p.cur.t!==m){if(p.cur){p.bars.push(p.cur);if(p.bars.length>HIST_MIN+4000)p.bars.splice(0,2000);}p.cur={t:m,o:p.bid,h:p.bid,l:p.bid,c:p.bid};}
+  else{const c=p.cur;c.c=p.bid;if(p.bid>c.h)c.h=p.bid;if(p.bid<c.l)c.l=p.bid;}
+}
+function tickAll(){PAIRS.forEach(p=>{quote(p);bar(p,simT);});}
+
+/* ================= 口座 ================= */
+let saved=null;try{saved=JSON.parse(localStorage.getItem(KEY));}catch(e){}
+const freshAcc=bal=>({bal,lc:50,pos:[],ord:[],hist:[],nid:1,skip:false});
+let acc=(saved&&saved.acc&&Array.isArray(saved.acc.pos))?saved.acc:freshAcc(1000000);
+const firstRun=!(saved&&saved.acc);
+function save(){try{localStorage.setItem(KEY,JSON.stringify({acc,fx:Object.fromEntries(FK.map(k=>[k,F[k].p]))}));}catch(e){}}
+
+/* 過去10日分の1分足を生成 */
+(function genHistory(){
+  const end=Math.floor(Date.now()/MIN)*MIN;
+  simT=end-HIST_MIN*MIN;curMin=Math.floor(simT/MIN);
+  for(let i=0;i<HIST_MIN*12;i++){simT+=5000;checkMinute();advance(5);tickAll();}
+  if(saved&&saved.fx){
+    const before=PAIRS.map(p=>p.f());
+    FK.forEach(k=>{if(saved.fx[k]>0)F[k].p=saved.fx[k];});
+    PAIRS.forEach((p,i)=>{const r=p.f()/before[i];p.bars.concat([p.cur]).forEach(b=>{b.o*=r;b.h*=r;b.l*=r;b.c*=r;});p.bid=0;quote(p);});
+  }
+  simT=Date.now();sinceTick=(simT-end)/1000;checkMinute();
+})();
+
+const toJPY=(p,v)=>p.jpy?v:v*F.UJ.p;
+const exitQ=x=>{const p=BY[x.pair];return x.side>0?p.bid:p.ask;};
+const plOf=x=>toJPY(BY[x.pair],(exitQ(x)-x.price)*x.side*x.qty);
+const pipsOf=x=>(exitQ(x)-x.price)*x.side/BY[x.pair].pip;
+const mgn=(p,qty)=>toJPY(p,qty*p.mid)/LEV;
+const used=()=>acc.pos.reduce((a,x)=>a+mgn(BY[x.pair],x.qty),0);
+const floating=()=>acc.pos.reduce((a,x)=>a+plOf(x),0);
+const equity=()=>acc.bal+floating();
+const freeM=()=>equity()-used();
+
+const yen=v=>(v<0?'−':'')+Math.round(Math.abs(v)).toLocaleString('ja-JP')+'円';
+const syen=v=>(Math.round(v)>0?'+':'')+yen(v);
+const cls=v=>v>0?'up':v<0?'down':'';
+const nf=v=>v.toLocaleString('ja-JP');
+const fx=(p,v)=>(+v).toFixed(p.d);
+const sgn=v=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(1);
+function pxHTML(v,d){const s=v.toFixed(d);return `<span class="ph">${s.slice(0,-3)}</span><span class="pb">${s.slice(-3,-1)}</span><sup>${s.slice(-1)}</sup>`;}
+function tStr(t,withDate){const j=jp(t);return (withDate?`${j.mo}/${j.da} `:'')+`${p2(j.h)}:${p2(j.mi)}:${p2(j.s)}`;}
+const EX={MKT:'成行',LMT:'指値',STP:'逆指値',TRL:'トレール'};
+const sideJ=s=>s>0?'買':'売';
+
+let tt;function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,3200);}
+function log(e){acc.hist.unshift(Object.assign({t:simT},e));if(acc.hist.length>300)acc.hist.length=300;}
+
+/* 有効期限（無期限 / 日時指定・最長1ヵ月） */
+/* 米国夏時間（3月第2日曜〜11月第1日曜）の判定。NYクローズ＝日本時間 夏6:00／冬7:00 */
+function nthSunday(y,m,n){const d=new Date(Date.UTC(y,m,1));const first=(7-d.getUTCDay())%7+1;return first+7*(n-1);}
+function isDST(t){const y=new Date(t).getUTCFullYear();
+  const st=Date.UTC(y,2,nthSunday(y,2,2),7),en=Date.UTC(y,10,nthSunday(y,10,1),6);return t>=st&&t<en;}
+function dayStart7(t){const h=isDST(t)?6:7;return Math.floor((t+JST-h*3600000)/DAY)*DAY+h*3600000-JST;}
+function dtLocal(t){const d=new Date(t+JST);return `${d.getUTCFullYear()}-${p2(d.getUTCMonth()+1)}-${p2(d.getUTCDate())}T${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`;}
+function parseLocal(v){const m=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v||'');return m?Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5])-JST:NaN;}
+const expStr=t=>{const j=jp(t);return `${j.mo}/${j.da} ${p2(j.h)}:${p2(j.mi)}`;};
+
+if(!acc.set)acc.set={unit:1000,mult:10,slip:0};
+
+/* 約定処理 */
+function trigger(o,p){
+  const px=o.side>0?p.ask:p.bid,eps=p.tick/2;
+  if(o.exec==='MKT')return px;
+  if(o.exec==='LMT')return (o.side>0?px<=o.price+eps:px>=o.price-eps)?o.price:null;
+  if(o.exec==='TRL'){
+    if(o.side<0)o.price=Math.max(o.price,+(p.bid-o.trail).toFixed(p.d));
+    else o.price=Math.min(o.price,+(p.ask+o.trail).toFixed(p.d));
+  }
+  return (o.side>0?px>=o.price-eps:px<=o.price+eps)?px:null; /* 逆指値は到達時のレートで約定 */
+}
+function removeOrder(o){acc.ord=acc.ord.filter(x=>x!==o);}
+const posList=(pair,side)=>acc.pos.filter(x=>x.pair===pair&&x.side===side);
+const RULES={'建単価の低い順':(a,b)=>a.price-b.price,'建単価の高い順':(a,b)=>b.price-a.price,'FIFO':(a,b)=>a.t-b.t||a.id-b.id,'LIFO':(a,b)=>b.t-a.t||b.id-a.id};
+function fill(o,px){
+  removeOrder(o);if(o.oco)acc.ord=acc.ord.filter(x=>x.oco!==o.oco);
+  const p=BY[o.pair];
+  if(o.role==='new'){
+    if(mgn(p,o.qty)>freeM()){log({pair:o.pair,kind:'失効',side:o.side,qty:o.qty,price:px,exec:o.exec,note:'証拠金不足'});toast(`証拠金不足のため ${o.pair} の注文は失効しました`);return;}
+    const pos={id:acc.nid++,pair:o.pair,side:o.side,qty:o.qty,price:px,t:simT};
+    acc.pos.push(pos);
+    log({pair:o.pair,kind:'新規',side:o.side,qty:o.qty,price:px,exec:o.exec,note:o.note});
+    if(o.ifd){const g=o.ifd.length>1?'g'+acc.nid++:null;
+      o.ifd.forEach(l=>acc.ord.push({id:acc.nid++,pair:o.pair,side:-o.side,qty:o.qty,exec:l.exec,price:l.price,trail:l.trail||0,role:'close',posId:pos.id,oco:g,exp:o.exp,expL:o.expL,pat:o.pat,t:simT}));}
+    toast(`約定 ${o.pair} 新規${sideJ(o.side)} ${nf(o.qty)}通貨 @ ${fx(p,px)}${o.note?'　'+o.note:''}`);
+  }else if(o.role==='bulk'){
+    let rem=o.qty;
+    for(const pos of posList(o.pair,-o.side).sort(RULES[o.rule]||RULES.FIFO)){if(rem<=0)break;const q=Math.min(rem,pos.qty);closePos(pos,px,EX[o.exec]+'・一括',q);rem-=q;}
+  }else{
+    const pos=acc.pos.find(x=>x.id===o.posId);if(pos)closePos(pos,px,EX[o.exec],o.qty);
+  }
+  save();
+}
+function closePos(pos,px,how,qIn){
+  const q=Math.min(qIn||pos.qty,pos.qty);
+  const p=BY[pos.pair],v=toJPY(p,(px-pos.price)*pos.side*q),pp=(px-pos.price)*pos.side/p.pip;
+  acc.bal+=v;
+  if(q>=pos.qty){acc.pos=acc.pos.filter(x=>x!==pos);acc.ord=acc.ord.filter(x=>x.posId!==pos.id);
+    if(!posList(pos.pair,pos.side).length)acc.ord=acc.ord.filter(o=>!(o.role==='bulk'&&o.pair===pos.pair&&o.side===-pos.side));}
+  else{pos.qty-=q;acc.ord.forEach(o=>{if(o.posId===pos.id&&o.qty>pos.qty)o.qty=pos.qty;});}
+  log({pair:pos.pair,kind:'決済',side:-pos.side,qty:q,price:px,exec:how,pl:v,pips:pp,open:pos.price});
+  toast(`約定 ${pos.pair} 決済${sideJ(-pos.side)} ${nf(q)}通貨 @ ${fx(p,px)}　${syen(v)}`);
+}
+/* 決済注文で押さえている数量（OCOは1組で1つ分） */
+function sumOrders(filter){const seen={};let s=0;acc.ord.forEach(o=>{if(!filter(o))return;if(o.oco){if(seen[o.oco])return;seen[o.oco]=1;}s+=o.qty;});return s;}
+const reservedQty=pos=>sumOrders(o=>o.posId===pos.id);
+const bulkReserved=(pair,posSide)=>sumOrders(o=>o.role==='bulk'&&o.pair===pair&&o.side===-posSide);
+const bulkAvail=(pair,posSide)=>posList(pair,posSide).reduce((a,x)=>a+x.qty-reservedQty(x),0)-bulkReserved(pair,posSide);
+function closeMarket(pos,how){const p=BY[pos.pair];closePos(pos,pos.side>0?p.bid:p.ask,how||'成行');}
+function processOrders(){
+  for(const o of acc.ord.slice()){
+    if(!acc.ord.includes(o))continue;
+    if(o.exp&&simT>=o.exp){removeOrder(o);if(o.oco)acc.ord=acc.ord.filter(x=>x.oco!==o.oco);log({pair:o.pair,kind:'期限切れ',side:o.side,qty:o.qty,price:o.price,exec:o.exec});continue;}
+    if(o.role==='bulk'&&!posList(o.pair,-o.side).length){removeOrder(o);continue;}
+    const px=trigger(o,BY[o.pair]);if(px!=null)fill(o,px);
+  }
+  if(acc.pos.length){const u=used();if(u>0&&equity()/u*100<=acc.lc){
+    acc.pos.slice().forEach(x=>closeMarket(x,'ロスカット'));acc.ord=acc.ord.filter(o=>o.role==='new');save();
+    toast(`証拠金維持率が${acc.lc}%以下になったため、全建玉をロスカットしました`);}}
+}
+
+/* 2WAY（スピード注文）：発注から約定まで少し時間がかかり、許容スリッページを超えると約定しない */
+let inflight=[];
+function quick(side){
+  const q=mainQty();if(q.err){toast(q.err);return;}
+  const p=BY[sel];
+  inflight.push({pair:sel,side,qty:q.qty,req:side>0?p.ask:p.bid,slip:acc.set.slip,due:performance.now()+150+Math.random()*300});
+}
+function runInflight(){
+  if(!inflight.length)return;const now=performance.now();
+  inflight=inflight.filter(x=>{
+    if(now<x.due)return true;
+    const p=BY[x.pair],px=x.side>0?p.ask:p.bid,adv=+((px-x.req)*x.side/p.pip).toFixed(1);
+    if(x.slip>0&&adv>x.slip){log({pair:x.pair,kind:'失効',side:x.side,qty:x.qty,price:px,exec:'MKT',note:'スリッページ超過'});
+      toast(`許容スリッページ（${x.slip}${p.u}）を超えたため約定しませんでした（${sgn(adv)}${p.u}）`);return false;}
+    fill({pair:x.pair,side:x.side,qty:x.qty,exec:'MKT',role:'new',note:adv?`スリッページ ${sgn(adv)}${p.u}`:''},px);
+    renderAll(true);return false;
+  });
+}
+function closeOut(pair,posSide){
+  const list=acc.pos.filter(x=>x.pair===pair&&(posSide==null||x.side===posSide));
+  list.forEach(x=>closeMarket(x,'成行・全決済'));save();renderAll(true);renderForm();
+}
+
+/* ================= UI状態 ================= */
+let sel='USD/JPY',speed=1,tf=1,tab='pos',hoverX=null;
+const FS={pat:'通常',side:1,exec:'MKT',nexec:'LMT',sexec:'LMT',cpat:'通常',cexec:'MKT',exp:'無期限',expAt:0,rule:'FIFO'};
+let mode='new',closeId=null,amendId=null,bulkKey=null,pending=null,formErr='';
+function toNew(){mode='new';closeId=null;amendId=null;bulkKey=null;}
+
+/* --- 確認ダイアログ（全決済は必ず確認） --- */
+let cfYes=null;
+function askConfirm(title,body,yes,onYes){$('cfT').textContent=title;$('cfB').textContent=body;$('cfYes').textContent=yes;cfYes=onYes;$('cf').hidden=false;$('cfNo').focus();}
+$('cfNo').onclick=()=>{$('cf').hidden=true;cfYes=null;};
+$('cfYes').onclick=()=>{$('cf').hidden=true;const f=cfYes;cfYes=null;if(f)f();};
+
+/* --- レート一覧 --- */
+$('watch').innerHTML=PAIRS.map(p=>`<li><button data-s="${p.s}" aria-current="false">
+  <span class="nm">${p.n}<i>${p.s}</i></span><span class="chg" data-chg></span>
+  <span class="q"><span class="qb"><b data-bid></b></span><i data-spr></i><span class="qa"><b data-ask></b></span></span></button></li>`).join('');
+let dayCache={};
+function dayStats(p){
+  const ds=dayStart7(simT),key=p.s,c=dayCache[key];
+  if(c&&c.ds===ds&&c.n===p.bars.length){c.h=Math.max(c.h,p.cur.h);c.l=Math.min(c.l,p.cur.l);return c;}
+  let h=p.cur.h,l=p.cur.l,i=p.bars.length-1;
+  while(i>=0&&p.bars[i].t>=ds){h=Math.max(h,p.bars[i].h);l=Math.min(l,p.bars[i].l);i--;}
+  return dayCache[key]={ds,n:p.bars.length,h,l,prev:i>=0?p.bars[i].c:p.cur.o};
+}
+function renderWatch(){
+  $('watch').querySelectorAll('button').forEach(b=>{
+    const p=BY[b.dataset.s],st=dayStats(p),ch=(p.bid-st.prev)/p.pip;
+    b.setAttribute('aria-current',p.s===sel);
+    const be=b.querySelector('[data-bid]'),ae=b.querySelector('[data-ask]');
+    be.textContent=fx(p,p.bid);ae.textContent=fx(p,p.ask);
+    be.className=ae.className=p.dir>0?'up':p.dir<0?'down':'';
+    b.querySelector('[data-spr]').textContent=p.sprNow.toFixed(1);
+    const c=b.querySelector('[data-chg]');c.textContent=`前日比 ${sgn(ch)}`;c.className='chg '+cls(ch);
+  });
+}
+
+/* --- 数量（取引単位 × 倍率） --- */
+const UNITS=[100,1000,10000,100000];
+const unitOpts=cur=>UNITS.map(u=>`<option value="${u}" ${u===cur?'selected':''}>${nf(u)}通貨</option>`).join('');
+function readQty(uId,mId,max){
+  const u=Number($(uId).value),m=Number($(mId).value),q=u*m;
+  if(!Number.isInteger(m)||m<1)return{err:'取引倍率は1以上の整数で入力してください'};
+  const lim=max==null?1000000:max;
+  if(q>lim)return{err:max==null?'1注文あたりの数量は1,000,000通貨までです':`数量は ${nf(lim)}通貨以下にしてください`};
+  return{qty:q};
+}
+function mainQty(){return readQty('unit','mult');}
+$('unit').innerHTML=unitOpts(acc.set.unit);$('mult').value=acc.set.mult;$('slip').value=acc.set.slip||'';
+
+/* --- 2WAY・建玉サマリー --- */
+function sideSum(pair,side){const l=posList(pair,side);const q=l.reduce((a,x)=>a+x.qty,0);
+  return{q,avg:q?l.reduce((a,x)=>a+x.price*x.qty,0)/q:0,pl:l.reduce((a,x)=>a+plOf(x),0),n:l.length};}
+function renderBoard(){
+  const p=BY[sel],st=dayStats(p);
+  $('tName').textContent=`${p.n}（${p.s}）`;
+  $('tHL').textContent=`高 ${fx(p,st.h)}　安 ${fx(p,st.l)}`;
+  $('tBid').innerHTML=pxHTML(p.bid,p.d);$('tAsk').innerHTML=pxHTML(p.ask,p.d);
+  $('tSpr').textContent=p.sprNow.toFixed(1);$('tSprU').textContent=p.u;$('slipU').textContent=p.u;
+  const q=mainQty(),u=Number($('unit').value);
+  $('qtyEq').textContent=q.err?q.err:`＝ ${nf(q.qty)}通貨`;
+  const per=mgn(p,1),maxQ=per>0?Math.max(0,Math.floor(freeM()/per/u)*u):0;
+  $('mHint').textContent=`参考注文可能数量 ${nf(Math.min(maxQ,1000000))}通貨　必要証拠金 約${q.err?'—':yen(mgn(p,q.qty))}`;
+  const s=sideSum(sel,-1),b=sideSum(sel,1);
+  const cell=(lbl,x,c)=>`<div><span>${lbl}</span><b>${x.q?nf(x.q)+'通貨':'—'}</b><span>平均 ${x.q?fx(p,x.avg):'—'}</span><span class="${cls(x.pl)}">${x.q?syen(x.pl):'—'}</span></div>`;
+  $('psum').innerHTML=cell('売建玉',s)+cell('買建玉',b);
+  $('coSell').disabled=!s.q;$('coBuy').disabled=!b.q;$('coAll').disabled=!(s.q||b.q);
+}
+['unit','mult'].forEach(id=>$(id).addEventListener('input',()=>{const m=Number($('mult').value);acc.set.unit=Number($('unit').value);if(Number.isInteger(m)&&m>0)acc.set.mult=m;save();renderBoard();}));
+$('slip').addEventListener('input',()=>{const v=parseFloat($('slip').value);acc.set.slip=v>0?Math.round(v*10)/10:0;save();});
+$('multChips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('mult').value=b.dataset.m;acc.set.mult=+b.dataset.m;save();renderBoard();});
+$('sellBtn').onclick=()=>quick(-1);$('buyBtn').onclick=()=>quick(1);
+function coAsk(posSide){
+  const p=BY[sel],l=sideSum(sel,-1),r=sideSum(sel,1);
+  const q=posSide==null?l.q+r.q:sideSum(sel,posSide).q;
+  const name=posSide==null?'全決済':posSide>0?'買全決済':'売全決済';
+  askConfirm(name,`${p.n}の${posSide==null?'すべての':posSide>0?'買':'売'}建玉 ${nf(q)}通貨を成行で決済します。`,`${name}する`,()=>closeOut(sel,posSide));
+}
+$('coSell').onclick=()=>coAsk(-1);$('coAll').onclick=()=>coAsk(null);$('coBuy').onclick=()=>coAsk(1);
+
+/* --- 注文フォーム --- */
+function seg(field,opts,cur,extra){return `<div class="seg ${extra||''}" data-field="${field}" role="group">${opts.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${String(v)===String(cur)}">${l}</button>`).join('')}</div>`;}
+function tabs2(field,opts,cur){return `<div class="tabs2" data-field="${field}">${opts.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===cur}">${v}</button>`).join('')}</div>`;}
+function pf(id,label,v,p){return `<label for="${id}">${label}<input id="${id}" type="number" step="${p.tick}" value="${fx(p,v)}"></label>`;}
+function trailF(p,v){return `<label for="fTrl">トレール幅（${p.u}）<input id="fTrl" type="number" min="0.1" step="0.1" value="${v||10}"></label>`;}
+function refPx(p,side,exec){const off=20*p.pip,b=p.bid,a=p.ask;
+  if(side>0)return exec==='LMT'?a-off:a+off;return exec==='LMT'?b+off:b-off;}
+function settlePx(p,side,np,exec){const off=20*p.pip;
+  if(side>0)return exec==='LMT'?np+2*off:np-off;return exec==='LMT'?np-2*off:np+off;}
+function expFields(){
+  if(!FS.expAt||FS.expAt<=simT)FS.expAt=Math.ceil((simT+DAY)/(5*MIN))*5*MIN;
+  let h=`<div class="frow"><span class="lbl">有効期限</span>${seg('exp',[['無期限','無期限'],['日時指定','日時指定']],FS.exp)}</div>`;
+  if(FS.exp==='日時指定')h+=`<label for="fExp">期限日時（最長1ヵ月先）<input id="fExp" type="datetime-local" value="${dtLocal(FS.expAt)}" min="${dtLocal(simT)}" max="${dtLocal(simT+31*DAY)}"></label>`;
+  return h;
+}
+function getExp(){
+  if(FS.exp==='無期限')return{exp:null,expL:'無期限'};
+  const t=parseLocal(($('fExp')||{}).value);
+  if(!(t>simT+MIN)||t>simT+31*DAY)return{err:'有効期限は現在から1ヵ月以内の日時を指定してください'};
+  return{exp:t,expL:expStr(t)};
+}
+function qtyFields(avail){
+  const u=avail%1000===0&&avail>=1000?1000:100;
+  return `<div class="qrow"><label for="fU">取引単位<select id="fU">${unitOpts(u)}</select></label><label for="fM">取引倍率<input id="fM" type="number" min="1" step="1" value="${avail/u}"></label></div>
+    <p class="hint num" id="fQeq">＝ ${nf(avail)}通貨（決済可能 ${nf(avail)}通貨）</p>`;
+}
+function closeExecFields(pp,cs){
+  let h=tabs2('cpat',['通常','OCO','トレール'],FS.cpat);
+  if(FS.cpat==='通常'){
+    h+=`<div class="frow"><span class="lbl">執行条件</span>${seg('cexec',[['MKT','成行'],['LMT','指値'],['STP','逆指値']],FS.cexec)}</div>`;
+    if(FS.cexec!=='MKT')h+=pf('fP1',EX[FS.cexec]+'価格',refPx(pp,cs,FS.cexec),pp);
+  }else if(FS.cpat==='OCO')h+=`<div class="two">${pf('fP1','指値（利食い）',refPx(pp,cs,'LMT'),pp)}${pf('fP2','逆指値（損切り）',refPx(pp,cs,'STP'),pp)}</div>`;
+  else h+=`<div class="two">${pf('fP1','逆指値価格',refPx(pp,cs,'STP'),pp)}${trailF(pp)}</div>`;
+  if(!(FS.cpat==='通常'&&FS.cexec==='MKT'))h+=expFields();
+  return h;
+}
+const btnLabel=()=>acc.skip?'注文発注':'注文確認';
+
+function renderForm(){
+  const p=BY[sel];let h='';
+  if(pending){
+    h=`<div class="confirm"><strong>${pending.amend?'訂正内容の確認':'注文内容の確認'}</strong><dl>${pending.sum.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+      <button class="primary" id="placeBtn">${pending.amend?'訂正発注':'注文発注'}</button><button class="btn" id="backBtn">修正する</button></div>`;
+    $('formArea').innerHTML=h;return;
+  }
+  if(mode==='amend'){
+    const o=acc.ord.find(x=>x.id===amendId);
+    if(!o){toNew();return renderForm();}
+    const op=BY[o.pair];
+    h+=`<div class="closebar"><span>注文訂正：番号${o.id} ${o.pair} ${o.role==='new'?'新規':o.role==='bulk'?'一括決済':'決済'}${sideJ(o.side)} ${EX[o.exec]} ${nf(o.qty)}通貨</span><button class="linkbtn" id="cancelClose">新規注文に戻る</button></div>`;
+    if(o.exec==='TRL')h+=`<div class="two">${pf('fP1','逆指値価格',o.price,op)}${trailF(op,(o.trail/op.pip).toFixed(1))}</div>`;
+    else h+=pf('fP1',`${EX[o.exec]}価格`,o.price,op);
+    if(o.ifd)o.ifd.forEach((l,i)=>{h+=pf('fL'+i,`約定後の決済 ${EX[l.exec]}価格`,l.price,op);});
+    if(o.oco)h+=`<p class="hint">OCOのもう一方の注文はそのまま残ります。</p>`;
+    h+=expFields();
+    h+=`<button class="primary" id="confirmBtn">${acc.skip?'訂正発注':'訂正確認'}</button>`;
+  }else if(mode==='close'){
+    const pos=acc.pos.find(x=>x.id===closeId);
+    if(!pos){toNew();return renderForm();}
+    const pp=BY[pos.pair],cs=-pos.side,avail=pos.qty-reservedQty(pos);
+    h+=`<div class="closebar"><span>個別決済：${pos.pair} ${sideJ(pos.side)} ${nf(pos.qty)}通貨 @ ${fx(pp,pos.price)}</span><button class="linkbtn" id="cancelClose">新規注文に戻る</button></div>`;
+    if(avail<=0)h+=`<p class="err">この建玉は全数量に決済注文が出ています。「注文照会」で訂正か取消をしてください。</p>`;
+    else{h+=qtyFields(avail)+closeExecFields(pp,cs);h+=`<button class="primary" id="confirmBtn">${btnLabel()}</button>`;}
+  }else if(mode==='bulk'){
+    const pp=BY[bulkKey.pair],cs=-bulkKey.side,avail=bulkAvail(bulkKey.pair,bulkKey.side),sm=sideSum(bulkKey.pair,bulkKey.side);
+    if(!sm.q){toNew();return renderForm();}
+    h+=`<div class="closebar"><span>一括決済：${bulkKey.pair} ${sideJ(bulkKey.side)}建玉 ${nf(sm.q)}通貨（${sm.n}件）</span><button class="linkbtn" id="cancelClose">新規注文に戻る</button></div>`;
+    if(avail<=0)h+=`<p class="err">この建玉は全数量に決済注文が出ています。「注文照会」で訂正か取消をしてください。</p>`;
+    else{
+      h+=qtyFields(avail);
+      h+=`<label for="fRule">決済順<select id="fRule">${Object.keys(RULES).map(r=>`<option ${r===FS.rule?'selected':''}>${r}</option>`).join('')}</select></label>`;
+      h+=closeExecFields(pp,cs)+`<button class="primary" id="confirmBtn">${btnLabel()}</button>`;
+    }
+  }else{
+    h+=tabs2('pat',['通常','IFD','OCO','IFDOCO','トレール'],FS.pat);
+    h+=`<div class="frow"><span class="lbl">取引</span>${seg('side',[[-1,'新規売'],[1,'新規買']],FS.side,'side')}</div>`;
+    const s=FS.side;
+    if(FS.pat==='通常'){
+      h+=`<div class="frow"><span class="lbl">執行条件</span>${seg('exec',[['MKT','成行'],['LMT','指値'],['STP','逆指値']],FS.exec)}</div>`;
+      if(FS.exec!=='MKT')h+=pf('fP1',EX[FS.exec]+'価格',refPx(p,s,FS.exec),p);
+    }else if(FS.pat==='IFD'||FS.pat==='IFDOCO'){
+      const np=refPx(p,s,FS.nexec);
+      h+=`<div class="leg"><h4>新規注文</h4>${seg('nexec',[['LMT','指値'],['STP','逆指値']],FS.nexec)}${pf('fP1','価格',np,p)}</div>`;
+      if(FS.pat==='IFD')h+=`<div class="leg"><h4>決済注文・${sideJ(-s)}</h4>${seg('sexec',[['LMT','指値'],['STP','逆指値']],FS.sexec)}${pf('fP2','価格',settlePx(p,s,np,FS.sexec),p)}</div>`;
+      else h+=`<div class="leg"><h4>決済注文（OCO）・${sideJ(-s)}</h4><div class="two">${pf('fP2','指値（利食い）',settlePx(p,s,np,'LMT'),p)}${pf('fP3','逆指値（損切り）',settlePx(p,s,np,'STP'),p)}</div></div>`;
+    }else if(FS.pat==='OCO'){
+      h+=`<div class="two">${pf('fP1','指値価格',refPx(p,s,'LMT'),p)}${pf('fP2','逆指値価格',refPx(p,s,'STP'),p)}</div><p class="hint">どちらか一方が約定すると、もう一方は自動で取り消されます。</p>`;
+    }else{
+      h+=`<div class="two">${pf('fP1','逆指値価格',refPx(p,s,'STP'),p)}${trailF(p)}</div><p class="hint">相場が有利な方向へ動くと、逆指値価格がトレール幅を保って追いかけます。</p>`;
+    }
+    h+=`<p class="hint">数量は上の「取引単位 × 取引倍率」を使います。</p>`;
+    if(!(FS.pat==='通常'&&FS.exec==='MKT'))h+=expFields();
+    h+=`<button class="primary" id="confirmBtn">${btnLabel()}</button>`;
+  }
+  h+=`<label class="chk"><input type="checkbox" id="skipChk" ${acc.skip?'checked':''}>注文確認画面を省略する</label>`;
+  if(formErr)h+=`<p class="err">${formErr}</p>`;
+  $('formArea').innerHTML=h;
+}
+function num(id){const e=$(id);return e?parseFloat(e.value):NaN;}
+function chk(p,side,exec,price,ref,label){
+  if(!(price>0))return `${label}を入力してください`;
+  const below=(side>0)===(exec==='LMT');
+  if(below?!(price<ref):!(price>ref))return `${label}は ${fx(p,ref)} より${below?'低い':'高い'}価格を指定してください`;
+  return '';
+}
+/* 決済系（個別・一括）の注文を組み立てる */
+function closeOrders(p,cs,base,sum,E){
+  const ref=cs>0?p.ask:p.bid;
+  if(FS.cpat==='通常'&&FS.cexec==='MKT')return{orders:[{...base,exec:'MKT'}],sum:sum.concat([['執行条件','成行']]),mkt:true};
+  if(E.err)return E;
+  if(FS.cpat==='OCO'){const a=num('fP1'),b=num('fP2');const e=chk(p,cs,'LMT',a,ref,'指値')||chk(p,cs,'STP',b,ref,'逆指値');if(e)return{err:e};
+    const g='g'+acc.nid++;return{orders:[{...base,exec:'LMT',price:a,oco:g,...E},{...base,exec:'STP',price:b,oco:g,...E}],sum:sum.concat([['注文パターン','OCO'],['指値',fx(p,a)],['逆指値',fx(p,b)],['有効期限',E.expL]])};}
+  const a=num('fP1');
+  if(FS.cpat==='トレール'){const w=num('fTrl'),e=chk(p,cs,'STP',a,ref,'逆指値価格');if(e)return{err:e};if(!(w>0))return{err:'トレール幅を入力してください'};
+    return{orders:[{...base,exec:'TRL',price:a,trail:w*p.pip,...E}],sum:sum.concat([['注文パターン','トレール'],['逆指値',fx(p,a)],['トレール幅',w+p.u],['有効期限',E.expL]])};}
+  const e=chk(p,cs,FS.cexec,a,ref,EX[FS.cexec]+'価格');if(e)return{err:e};
+  return{orders:[{...base,exec:FS.cexec,price:a,...E}],sum:sum.concat([['執行条件',EX[FS.cexec]],['価格',fx(p,a)],['有効期限',E.expL]])};
+}
+function buildSpec(){
+  const E=getExp();
+  if(mode==='amend'){
+    if(E.err)return E;
+    const o=acc.ord.find(x=>x.id===amendId);if(!o)return{err:'この注文はすでに約定または取消されています'};
+    const p=BY[o.pair],ref=o.side>0?p.ask:p.bid,ex=o.exec==='TRL'?'STP':o.exec,a=num('fP1');
+    let e=chk(p,o.side,ex,a,ref,EX[ex]+'価格');if(e)return{err:e};
+    const ch={price:a,exp:E.exp,expL:E.expL},sum=[['注文番号',o.id],['通貨ペア',o.pair],['数量',nf(o.qty)+'通貨'],[EX[o.exec]+'価格',`${fx(p,o.price)} → ${fx(p,a)}`]];
+    if(o.exec==='TRL'){const w=num('fTrl');if(!(w>0))return{err:'トレール幅を入力してください'};ch.trail=w*p.pip;sum.push(['トレール幅',`${(o.trail/p.pip).toFixed(1)} → ${w.toFixed(1)}${p.u}`]);}
+    if(o.ifd){ch.ifd=[];for(let i=0;i<o.ifd.length;i++){const l=o.ifd[i],lp=num('fL'+i);e=chk(p,-o.side,l.exec,lp,a,`決済の${EX[l.exec]}価格`);if(e)return{err:e};ch.ifd.push({exec:l.exec,price:lp});sum.push([`決済 ${EX[l.exec]}`,`${fx(p,l.price)} → ${fx(p,lp)}`]);}}
+    sum.push(['有効期限',`${o.expL||'無期限'} → ${E.expL}`]);
+    return{amend:o.id,ch,sum};
+  }
+  if(mode==='close'){
+    const pos=acc.pos.find(x=>x.id===closeId);if(!pos)return{err:'建玉が見つかりません'};
+    const avail=pos.qty-reservedQty(pos),q=readQty('fU','fM',avail);if(q.err)return q;
+    const p=BY[pos.pair],cs=-pos.side;
+    return closeOrders(p,cs,{pair:pos.pair,side:cs,qty:q.qty,role:'close',posId:pos.id,pat:'個別決済'},
+      [['通貨ペア',pos.pair],['取引',`決済${sideJ(cs)}`],['決済数量',`${nf(q.qty)}通貨（保有 ${nf(pos.qty)}）`]],E);
+  }
+  if(mode==='bulk'){
+    const avail=bulkAvail(bulkKey.pair,bulkKey.side),q=readQty('fU','fM',avail);if(q.err)return q;
+    const p=BY[bulkKey.pair],cs=-bulkKey.side,rule=$('fRule').value;FS.rule=rule;
+    return closeOrders(p,cs,{pair:bulkKey.pair,side:cs,qty:q.qty,role:'bulk',rule,pat:'一括決済'},
+      [['通貨ペア',bulkKey.pair],['取引',`一括決済${sideJ(cs)}`],['決済数量',nf(q.qty)+'通貨'],['決済順',rule]],E);
+  }
+  const p=BY[sel],s=FS.side,ref=s>0?p.ask:p.bid,q=mainQty();if(q.err)return q;
+  const base={pair:sel,side:s,qty:q.qty,role:'new',pat:FS.pat};
+  const sum=[['通貨ペア',sel],['注文パターン',FS.pat],['取引',`新規${sideJ(s)}`],['数量',nf(q.qty)+'通貨']];
+  if(FS.pat==='通常'&&FS.exec==='MKT')return{orders:[{...base,exec:'MKT'}],sum:sum.concat([['執行条件','成行']]),mkt:true};
+  if(E.err)return E;
+  if(FS.pat==='通常'){const a=num('fP1'),e=chk(p,s,FS.exec,a,ref,EX[FS.exec]+'価格');if(e)return{err:e};
+    return{orders:[{...base,exec:FS.exec,price:a,...E}],sum:sum.concat([['執行条件',EX[FS.exec]],['価格',fx(p,a)],['有効期限',E.expL]])};}
+  if(FS.pat==='OCO'){const a=num('fP1'),b=num('fP2');const e=chk(p,s,'LMT',a,ref,'指値価格')||chk(p,s,'STP',b,ref,'逆指値価格');if(e)return{err:e};
+    const g='g'+acc.nid++;return{orders:[{...base,exec:'LMT',price:a,oco:g,...E},{...base,exec:'STP',price:b,oco:g,...E}],sum:sum.concat([['指値',fx(p,a)],['逆指値',fx(p,b)],['有効期限',E.expL]])};}
+  if(FS.pat==='トレール'){const a=num('fP1'),w=num('fTrl');const e=chk(p,s,'STP',a,ref,'逆指値価格');if(e)return{err:e};if(!(w>0))return{err:'トレール幅を入力してください'};
+    return{orders:[{...base,exec:'TRL',price:a,trail:w*p.pip,...E}],sum:sum.concat([['逆指値',fx(p,a)],['トレール幅',w+p.u],['有効期限',E.expL]])};}
+  const np=num('fP1');let e=chk(p,s,FS.nexec,np,ref,'新規注文の価格');if(e)return{err:e};
+  if(FS.pat==='IFD'){const sp=num('fP2');e=chk(p,-s,FS.sexec,sp,np,'決済注文の価格');if(e)return{err:e};
+    return{orders:[{...base,exec:FS.nexec,price:np,...E,ifd:[{exec:FS.sexec,price:sp}]}],sum:sum.concat([['新規',`${EX[FS.nexec]} ${fx(p,np)}`],['決済',`${EX[FS.sexec]} ${fx(p,sp)}`],['有効期限',E.expL]])};}
+  const tp=num('fP2'),sl=num('fP3');e=chk(p,-s,'LMT',tp,np,'利食いの指値')||chk(p,-s,'STP',sl,np,'損切りの逆指値');if(e)return{err:e};
+  return{orders:[{...base,exec:FS.nexec,price:np,...E,ifd:[{exec:'LMT',price:tp},{exec:'STP',price:sl}]}],sum:sum.concat([['新規',`${EX[FS.nexec]} ${fx(p,np)}`],['決済 指値',fx(p,tp)],['決済 逆指値',fx(p,sl)],['有効期限',E.expL]])};
+}
+function place(spec){
+  if(spec.amend){const o=acc.ord.find(x=>x.id===spec.amend);
+    if(!o){formErr='この注文はすでに約定または取消されています';toNew();renderForm();return;}
+    Object.assign(o,spec.ch);toast(`注文番号 ${o.id} を訂正しました`);toNew();save();renderAll(true);renderForm();return;}
+  spec.orders.forEach(o=>{o.id=acc.nid++;o.t=simT;o.trail=o.trail||0;
+    if(o.exec==='MKT'){const p=BY[o.pair];fill(o,o.side>0?p.ask:p.bid);}
+    else acc.ord.push(o);});
+  if(!spec.mkt)toast(`注文を受け付けました（${spec.orders.length}件）`);
+  toNew();save();renderAll(true);renderForm();
+}
+function submit(){
+  formErr='';const spec=buildSpec();
+  if(spec.err){formErr=spec.err;renderForm();return;}
+  if(acc.skip)place(spec);else{pending=spec;renderForm();}
+}
+$('formArea').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  const fld=b.parentElement.dataset.field;
+  if(fld){let v=b.dataset.v;if(fld==='side')v=+v;FS[fld]=v;formErr='';renderForm();return;}
+  if(b.id==='confirmBtn')submit();
+  else if(b.id==='placeBtn'){const s=pending;pending=null;place(s);}
+  else if(b.id==='backBtn'){pending=null;renderForm();}
+  else if(b.id==='cancelClose'){toNew();formErr='';renderForm();}
+});
+$('formArea').addEventListener('input',e=>{
+  if(e.target.id==='fU'||e.target.id==='fM'){const q=Number($('fU').value)*Number($('fM').value);$('fQeq').textContent=Number.isFinite(q)?`＝ ${nf(q)}通貨`:'';}
+});
+$('formArea').addEventListener('change',e=>{
+  if(e.target.id==='skipChk'){acc.skip=e.target.checked;save();renderForm();}
+  if(e.target.id==='fExp'){const t=parseLocal(e.target.value);if(t>0)FS.expAt=t;}
+  if(e.target.id==='fRule')FS.rule=e.target.value;
+});
+
+/* --- 証拠金 --- */
+function renderStats(){
+  const f=floating(),eq=acc.bal+f,u=used();
+  $('sBal').textContent=yen(acc.bal);
+  $('sPnl').textContent=syen(f);$('sPnl').className='num '+cls(f);
+  $('sEq').textContent=yen(eq);$('sMar').textContent=yen(u);$('sFree').textContent=yen(eq-u);
+  const lv=u>0?eq/u*100:null;
+  $('sLvl').textContent=lv==null?'—':lv.toFixed(1)+'%';
+  $('sLvl').className='num '+(lv!=null&&lv<acc.lc+50?'down':'');
+  $('sLc').textContent=`ロスカット率 ${acc.lc}%`;
+  const j=jp(simT);$('clk').textContent=`${j.mo}/${j.da}(${WD[j.wd]}) ${p2(j.h)}:${p2(j.mi)}:${p2(j.s)}`;
+  const dst=isDST(simT);
+  $('hours').textContent=dst?'米国夏時間｜取引時間 月7:00〜土5:30（冬時間は土6:30まで）':'米国冬時間｜取引時間 月7:00〜土6:30（夏時間は土5:30まで）';
+  const h=hourJ(simT);
+  $('sess').textContent=simT<newsUntil?'指標発表・急変動中':h>=21||h<2?'ロンドン・NY重複':h>=15?'ロンドン時間':h>=8?'東京時間':h>=6?'早朝（流動性低下）':'NY時間';
+}
+
+/* --- 一覧表 --- */
+let posSig='',sumSig='',ordSig='',histSig='';
+const pill=s=>`<span class="pill ${s>0?'b':'s'}">${sideJ(s)}</span>`;
+function sumKeys(){const k=[];PAIRS.forEach(p=>[-1,1].forEach(s=>{if(posList(p.s,s).length)k.push([p.s,s]);}));return k;}
+function renderTables(force){
+  $('cntPos').textContent=acc.pos.length;$('cntOrd').textContent=acc.ord.length;
+  /* 建玉一覧 */
+  const ps=acc.pos.map(x=>x.id+':'+x.qty+':'+reservedQty(x)).join(',');
+  if(force||ps!==posSig){posSig=ps;
+    $('posWrap').innerHTML=acc.pos.length?`<table><thead><tr><th class="l">通貨ペア</th><th class="l">売買</th><th>数量</th><th>建単価</th><th>評価レート</th><th>評価損益</th><th>損益（銭/pips）</th><th>必要証拠金</th><th>決済注文中</th><th>建日時</th><th></th></tr></thead><tbody>${
+      acc.pos.map(x=>{const p=BY[x.pair],r=reservedQty(x);return `<tr data-id="${x.id}"><td class="l jp">${x.pair}</td><td class="l">${pill(x.side)}</td><td>${nf(x.qty)}</td><td>${fx(p,x.price)}</td><td data-cur></td><td data-pl></td><td data-pp></td><td data-mg></td><td class="muted">${r?nf(r):'—'}</td><td>${tStr(x.t,true)}</td><td><button class="rowbtn" data-close="${x.id}">決済注文</button></td></tr>`;}).join('')
+    }</tbody></table>`:`<div class="empty">建玉はありません。2WAYの「売」「買」か、下の注文フォームから発注できます。</div>`;}
+  $('posWrap').querySelectorAll('tr[data-id]').forEach(tr=>{
+    const x=acc.pos.find(p=>p.id==tr.dataset.id);if(!x)return;const p=BY[x.pair],v=plOf(x),pp=pipsOf(x);
+    tr.querySelector('[data-cur]').textContent=fx(p,exitQ(x));
+    const a=tr.querySelector('[data-pl]');a.textContent=syen(v);a.className=cls(v);
+    const b=tr.querySelector('[data-pp]');b.textContent=sgn(pp)+' '+p.u;b.className=cls(pp);
+    tr.querySelector('[data-mg]').textContent=yen(mgn(p,x.qty));
+  });
+  /* 建玉サマリー */
+  const keys=sumKeys(),ss=keys.map(([pr,s])=>pr+s+':'+sideSum(pr,s).q+':'+bulkAvail(pr,s)).join(',');
+  if(force||ss!==sumSig){sumSig=ss;
+    $('sumWrap').innerHTML=keys.length?`<table><thead><tr><th class="l">通貨ペア</th><th class="l">売買</th><th>建玉数量</th><th>件数</th><th>平均建単価</th><th>評価レート</th><th>評価損益</th><th>決済可能数量</th><th></th></tr></thead><tbody>${
+      keys.map(([pr,s])=>{const p=BY[pr],m=sideSum(pr,s);return `<tr data-k="${pr}|${s}"><td class="l jp">${pr}</td><td class="l">${pill(s)}</td><td>${nf(m.q)}</td><td>${m.n}</td><td>${fx(p,m.avg)}</td><td data-cur></td><td data-pl></td><td>${nf(Math.max(0,bulkAvail(pr,s)))}</td><td><button class="rowbtn" data-bulk="${pr}|${s}">一括決済注文</button></td></tr>`;}).join('')
+    }</tbody></table>`:`<div class="empty">建玉はありません。</div>`;}
+  $('sumWrap').querySelectorAll('tr[data-k]').forEach(tr=>{const [pr,s]=tr.dataset.k.split('|'),p=BY[pr],m=sideSum(pr,+s);
+    tr.querySelector('[data-cur]').textContent=fx(p,+s>0?p.bid:p.ask);
+    const a=tr.querySelector('[data-pl]');a.textContent=syen(m.pl);a.className=cls(m.pl);});
+  $('closeAll').disabled=!acc.pos.length;$('cancelAll').disabled=!acc.ord.length;
+  /* 注文照会 */
+  const os=acc.ord.map(o=>[o.id,o.qty,o.exp,o.trail,o.ifd?o.ifd.map(l=>l.price).join('/'):'',o.exec==='TRL'?'':o.price].join(':')).join(',');
+  if(force||os!==ordSig){ordSig=os;
+    $('ordWrap').innerHTML=acc.ord.length?`<table><thead><tr><th class="l">注文番号</th><th class="l">通貨ペア</th><th class="l">注文パターン</th><th class="l">区分</th><th class="l">売買</th><th class="l">執行条件</th><th>注文価格</th><th>数量</th><th class="l">有効期限</th><th class="l">状態</th><th></th></tr></thead><tbody>${
+      acc.ord.map(o=>{const p=BY[o.pair];const st=o.ifd?'約定後 '+o.ifd.map(l=>`${EX[l.exec]} ${fx(p,l.price)}`).join(' / '):o.oco?'OCO待機中':o.role==='bulk'?`決済順 ${o.rule}`:'待機中';
+      return `<tr><td class="l">${o.id}</td><td class="l jp">${o.pair}</td><td class="l jp">${o.pat||'通常'}</td><td class="l jp">${o.role==='new'?'新規':'決済'}</td><td class="l">${pill(o.side)}</td><td class="l jp">${EX[o.exec]}${o.trail?`（幅${(o.trail/p.pip).toFixed(1)}）`:''}</td><td data-opx="${o.id}">${fx(p,o.price)}</td><td>${nf(o.qty)}</td><td class="l">${o.exp?expStr(o.exp):'無期限'}</td><td class="l jp muted">${st}</td><td><button class="rowbtn" data-amend="${o.id}">訂正</button> <button class="rowbtn" data-cancel="${o.id}">取消</button></td></tr>`;}).join('')
+    }</tbody></table>`:`<div class="empty">待機中の注文はありません。</div>`;}
+  $('ordWrap').querySelectorAll('[data-opx]').forEach(td=>{const o=acc.ord.find(x=>x.id==td.dataset.opx);if(o)td.textContent=fx(BY[o.pair],o.price);});
+  /* 約定履歴 */
+  const hs=acc.hist.length+':'+(acc.hist[0]?acc.hist[0].t:0);
+  if(force||hs!==histSig){histSig=hs;
+    const cl=acc.hist.filter(x=>x.kind==='決済'),tot=cl.reduce((a,x)=>a+x.pl,0),w=cl.filter(x=>x.pl>0).length;
+    $('histWrap').innerHTML=acc.hist.length?`<div class="sum"><span>決済 ${cl.length}回</span><span>勝率 ${cl.length?(w/cl.length*100).toFixed(0):0}%</span><span>確定損益合計 <b class="num ${cls(tot)}">${syen(tot)}</b></span></div><div class="tbl-wrap"><table><thead><tr><th class="l">約定日時</th><th class="l">通貨ペア</th><th class="l">区分</th><th class="l">売買</th><th>数量</th><th>約定価格</th><th class="l">執行条件</th><th>建単価</th><th>決済損益</th><th>損益（銭/pips）</th></tr></thead><tbody>${
+      acc.hist.map(x=>{const p=BY[x.pair];return `<tr><td class="l">${tStr(x.t,true)}</td><td class="l jp">${x.pair}</td><td class="l jp">${x.kind}${x.note?'（'+x.note+'）':''}</td><td class="l">${pill(x.side)}</td><td>${nf(x.qty)}</td><td>${fx(p,x.price)}</td><td class="l jp">${EX[x.exec]||x.exec}</td><td>${x.open!=null?fx(p,x.open):'—'}</td><td class="${x.pl!=null?cls(x.pl):''}">${x.pl!=null?syen(x.pl):'—'}</td><td class="${x.pips!=null?cls(x.pips):''}">${x.pips!=null?sgn(x.pips)+' '+p.u:'—'}</td></tr>`;}).join('')
+    }</tbody></table></div>`:`<div class="empty">約定履歴はまだありません。</div>`;}
+}
+function openForm(){pending=null;formErr='';renderAll(true);renderForm();if(narrow())go('trade');const fa=$('formArea');if(fa.scrollIntoView)fa.scrollIntoView({behavior:'smooth',block:'nearest'});}
+$('posWrap').addEventListener('click',e=>{const b=e.target.closest('[data-close]');if(!b)return;
+  const pos=acc.pos.find(x=>x.id==b.dataset.close);if(!pos)return;
+  sel=pos.pair;toNew();mode='close';closeId=pos.id;FS.cpat='通常';FS.cexec='MKT';openForm();});
+$('sumWrap').addEventListener('click',e=>{const b=e.target.closest('[data-bulk]');if(!b)return;
+  const [pr,s]=b.dataset.bulk.split('|');sel=pr;toNew();mode='bulk';bulkKey={pair:pr,side:+s};FS.cpat='通常';FS.cexec='MKT';openForm();});
+$('ordWrap').addEventListener('click',e=>{
+  const am=e.target.closest('[data-amend]');
+  if(am){const o=acc.ord.find(x=>x.id==am.dataset.amend);if(!o)return;
+    sel=o.pair;toNew();mode='amend';amendId=o.id;FS.exp=o.exp?'日時指定':'無期限';if(o.exp)FS.expAt=o.exp;openForm();return;}
+  const b=e.target.closest('[data-cancel]');if(!b)return;
+  const o=acc.ord.find(x=>x.id==b.dataset.cancel);if(!o)return;
+  acc.ord=acc.ord.filter(x=>x!==o&&!(o.oco&&x.oco===o.oco));save();toast(`注文番号 ${o.id} を取り消しました`);renderAll(true);renderForm();});
+$('closeAll').onclick=()=>{const q=acc.pos.reduce((a,x)=>a+x.qty,0);
+  askConfirm('全建玉の決済',`すべての通貨ペアの建玉 ${acc.pos.length}件（${nf(q)}通貨）を成行で決済します。`,'全建玉を決済する',()=>{acc.pos.slice().forEach(x=>closeMarket(x,'成行・全決済'));save();renderAll(true);renderForm();});};
+$('cancelAll').onclick=()=>askConfirm('全注文の取消',`待機中の注文 ${acc.ord.length}件をすべて取り消します。`,'すべて取り消す',()=>{acc.ord=[];save();toast('すべての注文を取り消しました');renderAll(true);renderForm();});
+document.querySelectorAll('[role=tab]').forEach(t=>t.onclick=()=>{tab=t.dataset.tab;
+  document.querySelectorAll('[role=tab]').forEach(x=>x.setAttribute('aria-selected',x===t));
+  $('posWrap').hidden=tab!=='pos';$('sumWrap').hidden=tab!=='sum';$('ordWrap').hidden=tab!=='ord';$('histWrap').hidden=tab!=='hist';
+  $('closeAll').hidden=!(tab==='pos'||tab==='sum');$('cancelAll').hidden=tab!=='ord';});
+
+/* --- チャート --- */
+const cv=$('chart'),ctx=cv.getContext('2d');
+function agg(p,tfm,n){
+  const all=p.bars.concat([p.cur]),ms=tfm*MIN,out=[];let g=null;
+  for(let i=all.length-1;i>=0;i--){const b=all[i],k=Math.floor((b.t+JST)/ms)*ms-JST;
+    if(!g||g.t!==k){if(out.length>=n)break;g={t:k,o:b.o,h:b.h,l:b.l,c:b.c};out.push(g);}
+    else{g.o=b.o;if(b.h>g.h)g.h=b.h;if(b.l<g.l)g.l=b.l;}}
+  return out.reverse();
+}
+function tLabel(t){const j=jp(t);if(tf>=240)return `${j.mo}/${j.da}`;if(tf>=60)return `${j.mo}/${j.da} ${p2(j.h)}時`;return `${p2(j.h)}:${p2(j.mi)}`;}
+function drawChart(){
+  const r=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;if(!r.width)return;
+  const W=r.width,H=r.height;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const cs=getComputedStyle(document.documentElement),C=k=>cs.getPropertyValue(k).trim(),fnum=C('--font-num');
+  const padR=76,padT=10,padB=24,cw=W-padR-6,ch=H-padT-padB;
+  ctx.fillStyle=C('--panel');ctx.fillRect(0,0,W,H);
+  const p=BY[sel],slot=7,n=Math.max(10,Math.floor(cw/slot));
+  const all=agg(p,tf,n+20),vis=all.slice(-n),off=all.length-vis.length;
+  let lo=Infinity,hi=-Infinity;vis.forEach(b=>{if(b.l<lo)lo=b.l;if(b.h>hi)hi=b.h;});
+  const rng0=hi-lo;
+  acc.pos.filter(x=>x.pair===sel).forEach(x=>{if(x.price>lo-rng0*.5&&x.price<hi+rng0*.5){lo=Math.min(lo,x.price);hi=Math.max(hi,x.price);}});
+  const pad=(hi-lo)*.07||p.pip*5;lo-=pad;hi+=pad;
+  const y=v=>padT+(hi-v)/(hi-lo)*ch;
+  const x0=cw-vis.length*slot+slot/2,X=i=>Math.round(x0+i*slot)+.5;
+  ctx.font=`11px ${fnum}`;ctx.textBaseline='middle';ctx.lineWidth=1;
+  const sr=(hi-lo)/6,mag=Math.pow(10,Math.floor(Math.log10(sr))),st=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=sr);
+  for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st){const yy=Math.round(y(v))+.5;
+    ctx.strokeStyle=C('--line');ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W-padR,yy);ctx.stroke();
+    ctx.fillStyle=C('--muted');ctx.fillText(v.toFixed(p.d),W-padR+8,yy);}
+  // 時刻軸
+  const every=Math.ceil(95/slot);ctx.textAlign='center';
+  vis.forEach((b,i)=>{const gi=Math.floor(b.t/(tf*MIN));if(gi%every===0){const xx=X(i);
+    ctx.strokeStyle=C('--line');ctx.beginPath();ctx.moveTo(xx,padT);ctx.lineTo(xx,H-padB);ctx.stroke();
+    ctx.fillStyle=C('--muted');ctx.fillText(tLabel(b.t),xx,H-padB/2);}});
+  ctx.textAlign='left';
+  // ローソク足
+  vis.forEach((b,i)=>{const xx=X(i),col=b.c>=b.o?C('--up'):C('--down');
+    ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(xx,y(b.h));ctx.lineTo(xx,y(b.l));ctx.stroke();
+    const top=y(Math.max(b.o,b.c)),hh=Math.max(1,y(Math.min(b.o,b.c))-top);ctx.fillRect(xx-2.5,top,5,hh);});
+  // 移動平均（20）
+  ctx.strokeStyle=C('--accent');ctx.globalAlpha=.7;ctx.beginPath();let started=false;
+  vis.forEach((b,i)=>{const gi=i+off;if(gi<19)return;let s=0;for(let k=gi-19;k<=gi;k++)s+=all[k].c;const yy=y(s/20);
+    if(!started){ctx.moveTo(X(i),yy);started=true;}else ctx.lineTo(X(i),yy);});
+  ctx.stroke();ctx.globalAlpha=1;
+  // 注文・建玉ライン
+  const hline=(v,col,dash,label)=>{if(v<lo||v>hi)return;const yy=Math.round(y(v))+.5;
+    ctx.setLineDash(dash);ctx.strokeStyle=col;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(W-padR,yy);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=col;ctx.font=`600 11px ${fnum}`;ctx.fillText(label,6,yy-8);ctx.font=`11px ${fnum}`;};
+  acc.ord.filter(o=>o.pair===sel).forEach(o=>hline(o.price,C('--muted'),[6,4],`${EX[o.exec]} ${o.role==='new'?'新規':'決済'}${sideJ(o.side)} ${nf(o.qty)}`));
+  acc.pos.filter(x=>x.pair===sel).forEach(x=>hline(x.price,x.side>0?C('--buy'):C('--sell'),[2,3],`建玉 ${sideJ(x.side)} ${nf(x.qty)}`));
+  // 現在値
+  const yb=Math.round(y(p.bid))+.5;
+  ctx.setLineDash([4,4]);ctx.strokeStyle=C('--accent');ctx.beginPath();ctx.moveTo(0,yb);ctx.lineTo(W-padR,yb);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=C('--accent');ctx.fillRect(W-padR+2,yb-9,padR-4,18);
+  ctx.fillStyle=C('--on-accent');ctx.font=`600 11px ${fnum}`;ctx.fillText(fx(p,p.bid),W-padR+8,yb);
+  // クロスヘア
+  let hb=vis[vis.length-1];
+  if(hoverX!=null&&hoverX<W-padR){const i=Math.max(0,Math.min(vis.length-1,Math.round((hoverX-x0)/slot)));hb=vis[i];const xx=X(i);
+    ctx.strokeStyle=C('--muted');ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(xx,padT);ctx.lineTo(xx,H-padB);ctx.stroke();ctx.setLineDash([]);}
+  if(hb){const j=jp(hb.t);$('ohlc').textContent=`${j.mo}/${j.da} ${p2(j.h)}:${p2(j.mi)}　始 ${fx(p,hb.o)}　高 ${fx(p,hb.h)}　安 ${fx(p,hb.l)}　終 ${fx(p,hb.c)}　MA20`;}
+}
+cv.addEventListener('mousemove',e=>{hoverX=e.clientX-cv.getBoundingClientRect().left;});
+cv.addEventListener('mouseleave',()=>{hoverX=null;});
+new ResizeObserver(()=>drawChart()).observe(cv);
+$('tfSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;tf=+b.dataset.tf;
+  $('tfSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));drawChart();});
+
+/* --- 全体描画 --- */
+function renderAll(force){renderStats();renderWatch();renderBoard();renderTables(force);drawChart();$('cPair').textContent=`${BY[sel].n} ${sel}`;}
+$('watch').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.s!==sel){sel=b.dataset.s;toNew();pending=null;formErr='';renderForm();}renderAll(false);if(narrow())go('trade');});
+
+/* --- メインループ（不規則なティック到着） --- */
+let lastReal=performance.now(),frame=0;
+setInterval(()=>{
+  const now=performance.now(),dtReal=Math.min(1000,now-lastReal);lastReal=now;
+  if(speed){
+    const dtSim=dtReal*speed/1000,n=poisson(1.4*sess(simT)*dtSim);
+    if(!n){simT+=dtSim*1000;sinceTick+=dtSim;checkMinute();}
+    else{const sub=dtSim/n;for(let i=0;i<n;i++){simT+=sub*1000;checkMinute();advance(sinceTick+sub);sinceTick=0;tickAll();processOrders();}}
+  }
+  runInflight();
+  renderStats();renderWatch();renderBoard();renderTables(false);
+  if(++frame%2===0)drawChart();
+},100);
+setInterval(save,3000);
+
+$('speedSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;speed=+b.dataset.s;
+  $('speedSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+document.addEventListener('keydown',e=>{
+  if(!$('ov').hidden||!$('cf').hidden||e.target.matches('input,select,textarea')||e.metaKey||e.ctrlKey||e.altKey)return;
+  if(e.key==='b'||e.key==='B')quick(1);if(e.key==='s'||e.key==='S')quick(-1);});
+
+/* --- 口座設定 --- */
+function openOv(first){$('ov').hidden=false;$('cashSec').hidden=!!first;$('ovT').textContent=first?'開始残高を決めてください':'口座設定';
+  $('lcr').value=String(acc.lc);$('depErr').hidden=$('cashErr').hidden=true;$('dep').focus();}
+$('openSettings').onclick=()=>openOv(false);
+$('ovClose').onclick=()=>{$('ov').hidden=true;};
+$('depChips').addEventListener('click',e=>{const b=e.target.closest('button');if(b)$('dep').value=b.dataset.v;});
+$('depGo').onclick=()=>{const v=Math.round(Number($('dep').value));
+  if(!(v>=10000&&v<=1000000000)){$('depErr').textContent='開始残高は1万円〜10億円で入力してください';$('depErr').hidden=false;return;}
+  const lc=acc.lc,sk=acc.skip,st=acc.set;acc=freshAcc(v);acc.lc=lc;acc.skip=sk;acc.set=st;inflight=[];toNew();pending=null;
+  save();renderAll(true);renderForm();$('ov').hidden=true;toast(`残高 ${yen(v)} でデモ口座を開始しました`);};
+function cash(dir){const v=Math.round(Number($('cash').value));const er=$('cashErr');
+  if(!(v>0)){er.textContent='金額を入力してください';er.hidden=false;return;}
+  if(dir<0&&v>freeM()){er.textContent=`出金できるのは発注可能額（${yen(freeM())}）までです`;er.hidden=false;return;}
+  acc.bal+=dir*v;er.hidden=true;save();renderAll(false);toast(`${yen(v)}を${dir>0?'入金':'出金'}しました`);}
+$('inBtn').onclick=()=>cash(1);$('outBtn').onclick=()=>cash(-1);
+$('lcr').onchange=e=>{acc.lc=+e.target.value;save();renderStats();};
+
+renderAll(true);renderForm();
+/* --- スマホ幅：下部タブで画面切り替え --- */
+const narrow=()=>window.matchMedia('(max-width:760px)').matches;
+function go(sec){document.querySelectorAll('[data-sec]').forEach(e=>e.classList.toggle('on',e.dataset.sec===sec));
+  document.querySelectorAll('#tabbar button').forEach(b=>b.setAttribute('aria-current',b.dataset.go===sec));
+  if(sec==='chart')requestAnimationFrame(drawChart);window.scrollTo(0,0);}
+$('tabbar').addEventListener('click',e=>{const b=e.target.closest('button');if(b)go(b.dataset.go);});
+$('openSettings2').onclick=()=>openOv(false);
+go('rate');
+if(firstRun)openOv(true);
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+</script>
+</body>
+</html>
