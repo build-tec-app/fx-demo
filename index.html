@@ -1012,7 +1012,7 @@ const IND_DEF={
 };
 if(!acc.ind)acc.ind={};
 Object.keys(IND_DEF).forEach(k=>{if(!acc.ind[k])acc.ind[k]={on:IND_DEF[k].on,n:IND_DEF[k].n};});
-const CH={slot:7,off:0,tool:'pan',geo:null,draft:null,hoverX:null,hoverY:null};
+const CH={slot:7,off:0,tool:'pan',geo:null,draft:null,edit:null,hoverX:null,hoverY:null};
 function agg(p,tfm,n){
   const all=p.bars.concat([p.cur]),ms=tfm*MIN,out=[];let g=null;
   for(let i=all.length-1;i>=0;i--){const b=all[i],k=Math.floor((b.t+JST)/ms)*ms-JST;
@@ -1118,11 +1118,15 @@ function drawChart(){
   acc.ord.filter(o=>o.pair===sel).forEach(o=>hline(o.price,C('--muted'),[6,4],`${EX[o.exec]} ${o.role==='new'?'新規':'決済'}${sideJ(o.side)} ${nf(o.qty)}`));
   acc.pos.filter(x=>x.pair===sel).forEach(x=>hline(x.price,x.side>0?C('--buy'):C('--sell'),[2,3],`建玉 ${sideJ(x.side)} ${nf(x.qty)}`));
   /* 描いたライン */
-  const ink=C('--fg');ctx.lineWidth=1.5;
-  lines().concat(CH.draft?[CH.draft]:[]).forEach(l=>{ctx.strokeStyle=ink;ctx.fillStyle=ink;
+  const ink=C('--fg'),hot=C('--accent');
+  const editI=CH.edit?CH.edit.i:-1;
+  lines().concat(CH.draft?[CH.draft]:[]).forEach((l,i)=>{const col=i===editI?hot:ink;ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=i===editI?2.2:1.5;
     if(l.type==='h'){const yy=y(l.p);ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(cw,yy);ctx.stroke();}
     else{const x1=xOfT(l.t1),y1=y(l.p1),x2=xOfT(l.t2),y2=y(l.p2);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
-      [[x1,y1],[x2,y2]].forEach(([a,b])=>{ctx.beginPath();ctx.arc(a,b,2.5,0,7);ctx.fill();});}});
+      if(Math.abs(x2-x1)>.5){const m=(y2-y1)/(x2-x1),xl=Math.min(x1,x2),xr=Math.max(x1,x2),yAt=x=>y1+m*(x-x1);
+        ctx.save();ctx.setLineDash([5,4]);ctx.globalAlpha=.7;ctx.lineWidth=1.2;ctx.beginPath();
+        ctx.moveTo(xr,yAt(xr));ctx.lineTo(cw+10,yAt(cw+10));ctx.moveTo(xl,yAt(xl));ctx.lineTo(-10,yAt(-10));ctx.stroke();ctx.restore();}
+      [[x1,y1],[x2,y2]].forEach(([a,b])=>{ctx.beginPath();ctx.arc(a,b,i===editI?4.5:3,0,7);ctx.fill();});}});
   ctx.lineWidth=1;
   const yb=Math.round(y(p.bid))+.5;
   ctx.setLineDash([4,4]);ctx.strokeStyle=C('--accent');ctx.beginPath();ctx.moveTo(0,yb);ctx.lineTo(cw,yb);ctx.stroke();ctx.setLineDash([]);
@@ -1186,7 +1190,7 @@ function zoomAt(x,factor){
 }
 function setTool(t){CH.tool=t;CH.draft=null;$('toolSeg').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.tool===t));
   cv.style.cursor=t==='pan'?'grab':t==='erase'?'pointer':'crosshair';
-  $('toolHint').textContent={pan:'ドラッグで移動、ホイールかピンチで拡大縮小',h:'タップした価格に水平線を引きます',t:'始点から終点までドラッグしてトレンドラインを引きます',erase:'消したいラインをタップします'}[t];}
+  $('toolHint').textContent={pan:'ドラッグで移動・ホイールかピンチで拡大縮小。引いた線はドラッグで動かせ、トレンドラインは端の点で角度を変えられます',h:'タップした価格に水平線を引きます',t:'始点から終点までドラッグしてトレンドラインを引きます',erase:'消したいラインをタップします'}[t];}
 $('toolSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setTool(b.dataset.tool);});
 $('zIn').onclick=()=>zoomAt(CH.geo?CH.geo.cw/2:200,1.25);
 $('zOut').onclick=()=>zoomAt(CH.geo?CH.geo.cw/2:200,.8);
@@ -1195,7 +1199,7 @@ $('cClear').onclick=()=>{if(!lines().length){toast('消すラインがありま�
 
 const ptrs=new Map();let drag=null,pinch=null;
 function local(e){const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
-function hitLine(x,yy){const g=CH.geo;let best=-1,bd=12;
+function hitLine(x,yy,tol){const g=CH.geo;let best=-1,bd=tol||12;
   lines().forEach((l,i)=>{let d;
     if(l.type==='h')d=Math.abs(g.y(l.p)-yy);
     else{const x1=g.xOfT(l.t1),y1=g.y(l.p1),x2=g.xOfT(l.t2),y2=g.y(l.p2),dx=x2-x1,dy=y2-y1,L=dx*dx+dy*dy||1;
@@ -1205,8 +1209,13 @@ function hitLine(x,yy){const g=CH.geo;let best=-1,bd=12;
 cv.addEventListener('pointerdown',e=>{
   try{cv.setPointerCapture(e.pointerId);}catch(_){}
   const pt=local(e);ptrs.set(e.pointerId,pt);const g=CH.geo;if(!g)return;
-  if(ptrs.size===2){const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,slot:CH.slot,off:CH.off,mx:(a.x+b.x)/2};drag=null;CH.draft=null;return;}
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];if(CH.edit){const ed=CH.edit,l=lines()[ed.i];if(l)Object.assign(l,ed.orig);CH.edit=null;}pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,slot:CH.slot,off:CH.off,mx:(a.x+b.x)/2};drag=null;CH.draft=null;return;}
   const inMain=pt.y<g.padT+g.ch;
+  const tol=e.pointerType==='mouse'?9:18;
+  if(CH.tool==='pan'&&inMain){const i=hitLine(pt.x,pt.y,tol);
+    if(i>=0){const l=lines()[i];let mode='move';
+      if(l.type==='t'){if(Math.hypot(pt.x-g.xOfT(l.t1),pt.y-g.y(l.p1))<tol+4)mode='p1';else if(Math.hypot(pt.x-g.xOfT(l.t2),pt.y-g.y(l.p2))<tol+4)mode='p2';}
+      CH.edit={i,mode,x:pt.x,y:pt.y,orig:{...l}};cv.style.cursor='move';drawChart();return;}}
   if(CH.tool==='pan'||!inMain){drag={x:pt.x,off:CH.off};cv.style.cursor='grabbing';}
   else if(CH.tool==='h'){lines().push({type:'h',p:+g.pOfY(pt.y).toFixed(BY[sel].d)});save();setTool('pan');drawChart();}
   else if(CH.tool==='t'){const t=g.tOfX(Math.min(pt.x,g.cw)),pr=g.pOfY(pt.y);CH.draft={type:'t',t1:t,p1:pr,t2:t,p2:pr};drawChart();}
@@ -1219,13 +1228,21 @@ cv.addEventListener('pointermove',e=>{
   if(pinch&&ptrs.size>=2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);
     const ns=Math.max(2,Math.min(32,pinch.slot*d/pinch.d)),k=(g.cw-pinch.slot/2-pinch.mx)/pinch.slot+pinch.off;
     CH.slot=ns;CH.off=Math.max(0,k-((g.cw-ns/2)-pinch.mx)/ns);drawChart();return;}
+  if(CH.edit){const ed=CH.edit,l=lines()[ed.i],o=ed.orig;if(!l){CH.edit=null;return;}
+    const dt=g.tOfX(pt.x)-g.tOfX(ed.x),dp=g.pOfY(pt.y)-g.pOfY(ed.y);
+    if(l.type==='h')l.p=+(o.p+dp).toFixed(BY[sel].d);
+    else if(ed.mode==='p1'){l.t1=g.tOfX(pt.x);l.p1=g.pOfY(pt.y);}
+    else if(ed.mode==='p2'){l.t2=g.tOfX(pt.x);l.p2=g.pOfY(pt.y);}
+    else{l.t1=o.t1+dt;l.t2=o.t2+dt;l.p1=o.p1+dp;l.p2=o.p2+dp;}
+    drawChart();return;}
   if(drag){CH.off=Math.max(0,drag.off+(pt.x-drag.x)/CH.slot);drawChart();return;}
   if(CH.draft){CH.draft.t2=g.tOfX(Math.min(pt.x,g.cw));CH.draft.p2=g.pOfY(Math.min(pt.y,g.padT+g.ch));drawChart();return;}
-  if(e.pointerType==='mouse')drawChart();
+  if(e.pointerType==='mouse'){if(CH.tool==='pan')cv.style.cursor=hitLine(pt.x,pt.y,9)>=0?'move':'grab';drawChart();}
 });
 function endPtr(e){
   ptrs.delete(e.pointerId);
   if(ptrs.size<2)pinch=null;
+  if(CH.edit&&!ptrs.size){CH.edit=null;save();cv.style.cursor='grab';drawChart();}
   if(drag&&!ptrs.size){drag=null;cv.style.cursor=CH.tool==='pan'?'grab':'crosshair';}
   if(CH.draft&&!ptrs.size){const d=CH.draft,g=CH.geo;CH.draft=null;
     if(Math.abs(g.xOfT(d.t2)-g.xOfT(d.t1))+Math.abs(g.y(d.p2)-g.y(d.p1))>8){lines().push(d);save();setTool('pan');}
@@ -1296,7 +1313,7 @@ if(firstRun)openOv(true);
 </script>
 
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});});}
 </script>
 </body>
 </html>
