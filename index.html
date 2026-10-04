@@ -167,6 +167,19 @@ input[type=datetime-local]{font-size:13px}
 .chips button{flex:1;background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px;font:500 12px var(--font-num);cursor:pointer;white-space:nowrap}
 .chips button:hover{border-color:var(--muted)}
 .two,.qrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.two:has(.pfield){grid-template-columns:1fr;gap:10px}
+.pfield{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pfield .lbl{font-size:12px;color:var(--muted);flex-direction:row}
+.pstep{display:grid;grid-template-columns:48px minmax(0,1fr) 48px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.pstep button{background:var(--panel2);border:0;color:var(--fg);font:500 22px var(--font-num);cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;line-height:1}
+.pstep button:first-child{border-right:1px solid var(--line)} .pstep button:last-child{border-left:1px solid var(--line)}
+.pstep button:active{background:var(--line)}
+.pstep input{border:0!important;border-radius:0!important;text-align:center;font:500 18px var(--font-num)!important;padding:8px 4px!important;min-width:0;letter-spacing:.02em}
+.pdist{display:flex;align-items:center;justify-content:space-between;gap:4px 8px;flex-wrap:wrap;font:11.5px var(--font-num);color:var(--muted)}
+.pdist .bad{color:var(--buy)}
+.dchips{display:flex;gap:4px}
+.dchips button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:2px 8px;font:500 12px var(--font-num);cursor:pointer;touch-action:manipulation}
+.dchips button:hover{border-color:var(--muted)}
 .hint{font-size:11.5px;color:var(--muted);margin:0}
 .frow{display:flex;flex-direction:column;gap:5px}
 .frow > .lbl{font-size:12px;color:var(--muted)}
@@ -798,7 +811,22 @@ $('coSell').onclick=()=>coAsk(-1);$('coAll').onclick=()=>coAsk(null);$('coBuy').
 /* --- 注文フォーム --- */
 function seg(field,opts,cur,extra){return `<div class="seg ${extra||''}" data-field="${field}" role="group">${opts.map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="${String(v)===String(cur)}">${l}</button>`).join('')}</div>`;}
 function tabs2(field,opts,cur){return `<div class="tabs2" data-field="${field}">${opts.map(v=>`<button type="button" data-v="${v}" aria-pressed="${v===cur}">${v}</button>`).join('')}</div>`;}
-function pf(id,label,v,p){return `<label for="${id}">${label}<input id="${id}" type="number" step="${p.tick}" value="${fx(p,v)}"></label>`;}
+/* 価格入力：小数点以下を常に表示・＋－ボタン（長押しで連続）・「現在値から○銭」ボタン */
+function pf(id,label,v,p,side,exec,ref){
+  const dir=side==null?0:((side>0)===(exec==='LMT')?-1:1);
+  return `<div class="pfield" data-dir="${dir}" data-side="${side||0}" data-ref="${ref||'m'}"><label class="lbl" for="${id}">${label}</label>
+    <div class="pstep"><button type="button" data-st="-1" aria-label="${label}を下げる">−</button><input id="${id}" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" value="${fx(p,v)}"><button type="button" data-st="1" aria-label="${label}を上げる">＋</button></div>
+    ${dir?`<div class="pdist"><span data-dist></span><span class="dchips">${[5,10,20,30,50].map(d=>`<button type="button" data-d="${d}">${d}</button>`).join('')}</span></div>`:''}</div>`;}
+function pfRef(el){const p=BY[sel],r=el.dataset.ref,side=+el.dataset.side;
+  if(r==='f'){const v=num('fP1');return v>0?v:null;}return side>0?p.ask:p.bid;}
+function pfVal(inp){const v=parseFloat(String(inp.value).replace(/[０-９．]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[^\d.]/g,''));return v>0?v:null;}
+function pfSet(inp,v){const p=BY[sel];inp.value=(Math.round(v/p.tick)*p.tick).toFixed(p.d);}
+function updDist(){const p=BY[sel];
+  document.querySelectorAll('#formArea .pfield').forEach(el=>{const d=el.querySelector('[data-dist]');if(!d)return;
+    const v=pfVal(el.querySelector('input')),ref=pfRef(el),dir=+el.dataset.dir;
+    if(v==null||ref==null){d.textContent='';return;}
+    const dist=(v-ref)/p.pip,ok=dir>0?dist>0:dist<0;
+    d.textContent=`${el.dataset.ref==='f'?'新規価格':'現在値'}から ${sgn(dist)}${p.u}${ok?'':'（反対側です）'}`;d.className=ok?'':'bad';});}
 function trailF(p,v){return `<label for="fTrl">トレール幅（${p.u}）<input id="fTrl" type="number" min="0.1" step="0.1" value="${v||10}"></label>`;}
 function refPx(p,side,exec){const off=20*p.pip,b=p.bid,a=p.ask;
   if(side>0)return exec==='LMT'?a-off:a+off;return exec==='LMT'?b+off:b-off;}
@@ -825,9 +853,9 @@ function closeExecFields(pp,cs){
   let h=tabs2('cpat',['通常','OCO','トレール'],FS.cpat);
   if(FS.cpat==='通常'){
     h+=`<div class="frow"><span class="lbl">執行条件</span>${seg('cexec',[['MKT','成行'],['LMT','指値'],['STP','逆指値']],FS.cexec)}</div>`;
-    if(FS.cexec!=='MKT')h+=pf('fP1',EX[FS.cexec]+'価格',refPx(pp,cs,FS.cexec),pp);
-  }else if(FS.cpat==='OCO')h+=`<div class="two">${pf('fP1','指値（利食い）',refPx(pp,cs,'LMT'),pp)}${pf('fP2','逆指値（損切り）',refPx(pp,cs,'STP'),pp)}</div>`;
-  else h+=`<div class="two">${pf('fP1','逆指値価格',refPx(pp,cs,'STP'),pp)}${trailF(pp)}</div>`;
+    if(FS.cexec!=='MKT')h+=pf('fP1',EX[FS.cexec]+'価格',refPx(pp,cs,FS.cexec),pp,cs,FS.cexec);
+  }else if(FS.cpat==='OCO')h+=`<div class="two">${pf('fP1','指値（利食い）',refPx(pp,cs,'LMT'),pp,cs,'LMT')}${pf('fP2','逆指値（損切り）',refPx(pp,cs,'STP'),pp,cs,'STP')}</div>`;
+  else h+=`<div class="two">${pf('fP1','逆指値価格',refPx(pp,cs,'STP'),pp,cs,'STP')}${trailF(pp)}</div>`;
   if(!(FS.cpat==='通常'&&FS.cexec==='MKT'))h+=expFields();
   return h;
 }
@@ -845,9 +873,9 @@ function renderForm(){
     if(!o){toNew();return renderForm();}
     const op=BY[o.pair];
     h+=`<div class="closebar"><span>注文訂正：番号${o.id} ${o.pair} ${o.role==='new'?'新規':o.role==='bulk'?'一括決済':'決済'}${sideJ(o.side)} ${EX[o.exec]} ${nf(o.qty)}通貨</span><button class="linkbtn" id="cancelClose">新規注文に戻る</button></div>`;
-    if(o.exec==='TRL')h+=`<div class="two">${pf('fP1','逆指値価格',o.price,op)}${trailF(op,(o.trail/op.pip).toFixed(1))}</div>`;
-    else h+=pf('fP1',`${EX[o.exec]}価格`,o.price,op);
-    if(o.ifd)o.ifd.forEach((l,i)=>{h+=pf('fL'+i,`約定後の決済 ${EX[l.exec]}価格`,l.price,op);});
+    if(o.exec==='TRL')h+=`<div class="two">${pf('fP1','逆指値価格',o.price,op,o.side,'STP')}${trailF(op,(o.trail/op.pip).toFixed(1))}</div>`;
+    else h+=pf('fP1',`${EX[o.exec]}価格`,o.price,op,o.side,o.exec);
+    if(o.ifd)o.ifd.forEach((l,i)=>{h+=pf('fL'+i,`約定後の決済 ${EX[l.exec]}価格`,l.price,op,-o.side,l.exec,'f');});
     if(o.oco)h+=`<p class="hint">OCOのもう一方の注文はそのまま残ります。</p>`;
     h+=expFields();
     h+=`<button class="primary" id="confirmBtn">${acc.skip?'訂正発注':'訂正確認'}</button>`;
@@ -874,16 +902,16 @@ function renderForm(){
     const s=FS.side;
     if(FS.pat==='通常'){
       h+=`<div class="frow"><span class="lbl">執行条件</span>${seg('exec',[['MKT','成行'],['LMT','指値'],['STP','逆指値']],FS.exec)}</div>`;
-      if(FS.exec!=='MKT')h+=pf('fP1',EX[FS.exec]+'価格',refPx(p,s,FS.exec),p);
+      if(FS.exec!=='MKT')h+=pf('fP1',EX[FS.exec]+'価格',refPx(p,s,FS.exec),p,s,FS.exec);
     }else if(FS.pat==='IFD'||FS.pat==='IFDOCO'){
       const np=refPx(p,s,FS.nexec);
-      h+=`<div class="leg"><h4>新規注文</h4>${seg('nexec',[['LMT','指値'],['STP','逆指値']],FS.nexec)}${pf('fP1','価格',np,p)}</div>`;
-      if(FS.pat==='IFD')h+=`<div class="leg"><h4>決済注文・${sideJ(-s)}</h4>${seg('sexec',[['LMT','指値'],['STP','逆指値']],FS.sexec)}${pf('fP2','価格',settlePx(p,s,np,FS.sexec),p)}</div>`;
-      else h+=`<div class="leg"><h4>決済注文（OCO）・${sideJ(-s)}</h4><div class="two">${pf('fP2','指値（利食い）',settlePx(p,s,np,'LMT'),p)}${pf('fP3','逆指値（損切り）',settlePx(p,s,np,'STP'),p)}</div></div>`;
+      h+=`<div class="leg"><h4>新規注文</h4>${seg('nexec',[['LMT','指値'],['STP','逆指値']],FS.nexec)}${pf('fP1','価格',np,p,s,FS.nexec)}</div>`;
+      if(FS.pat==='IFD')h+=`<div class="leg"><h4>決済注文・${sideJ(-s)}</h4>${seg('sexec',[['LMT','指値'],['STP','逆指値']],FS.sexec)}${pf('fP2','価格',settlePx(p,s,np,FS.sexec),p,-s,FS.sexec,'f')}</div>`;
+      else h+=`<div class="leg"><h4>決済注文（OCO）・${sideJ(-s)}</h4><div class="two">${pf('fP2','指値（利食い）',settlePx(p,s,np,'LMT'),p,-s,'LMT','f')}${pf('fP3','逆指値（損切り）',settlePx(p,s,np,'STP'),p,-s,'STP','f')}</div></div>`;
     }else if(FS.pat==='OCO'){
-      h+=`<div class="two">${pf('fP1','指値価格',refPx(p,s,'LMT'),p)}${pf('fP2','逆指値価格',refPx(p,s,'STP'),p)}</div><p class="hint">どちらか一方が約定すると、もう一方は自動で取り消されます。</p>`;
+      h+=`<div class="two">${pf('fP1','指値価格',refPx(p,s,'LMT'),p,s,'LMT')}${pf('fP2','逆指値価格',refPx(p,s,'STP'),p,s,'STP')}</div><p class="hint">どちらか一方が約定すると、もう一方は自動で取り消されます。</p>`;
     }else{
-      h+=`<div class="two">${pf('fP1','逆指値価格',refPx(p,s,'STP'),p)}${trailF(p)}</div><p class="hint">相場が有利な方向へ動くと、逆指値価格がトレール幅を保って追いかけます。</p>`;
+      h+=`<div class="two">${pf('fP1','逆指値価格',refPx(p,s,'STP'),p,s,'STP')}${trailF(p)}</div><p class="hint">相場が有利な方向へ動くと、逆指値価格がトレール幅を保って追いかけます。</p>`;
     }
     h+=`<p class="hint">数量は上の「取引単位 × 取引倍率」を使います。</p>`;
     if(!(FS.pat==='通常'&&FS.exec==='MKT'))h+=expFields();
@@ -892,8 +920,9 @@ function renderForm(){
   h+=`<label class="chk"><input type="checkbox" id="skipChk" ${acc.skip?'checked':''}>注文確認画面を省略する</label>`;
   if(formErr)h+=`<p class="err">${formErr}</p>`;
   $('formArea').innerHTML=h;
+  updDist();
 }
-function num(id){const e=$(id);return e?parseFloat(e.value):NaN;}
+function num(id){const e=$(id);if(!e)return NaN;if(e.type==='text'){const v=pfVal(e);return v==null?NaN:v;}return parseFloat(e.value);}
 function chk(p,side,exec,price,ref,label){
   if(!(price>0))return `${label}を入力してください`;
   const below=(side>0)===(exec==='LMT');
@@ -980,7 +1009,19 @@ $('formArea').addEventListener('click',e=>{
   else if(b.id==='backBtn'){pending=null;renderForm();}
   else if(b.id==='cancelClose'){toNew();formErr='';renderForm();}
 });
-$('formArea').addEventListener('input',e=>{
+/* ＋－ボタン（長押しで連続）・距離ボタン */
+let rep=null;
+function stepField(btn){const el=btn.closest('.pfield'),inp=el.querySelector('input'),p=BY[sel];
+  const base=pfVal(inp)!=null?pfVal(inp):(pfRef(el)||p.bid);pfSet(inp,base+(+btn.dataset.st)*p.pip);updDist();}
+function stopRep(){if(rep){clearTimeout(rep.t);clearInterval(rep.i);rep=null;}}
+$('formArea').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-st]');if(!b)return;e.preventDefault();stopRep();stepField(b);
+  rep={t:setTimeout(()=>{rep.i=setInterval(()=>stepField(b),70);},400)};});
+['pointerup','pointercancel','pointerleave'].forEach(t=>$('formArea').addEventListener(t,stopRep));
+$('formArea').addEventListener('keydown',e=>{const b=e.target.closest('[data-st]');if(b&&(e.key==='Enter'||e.key===' ')){e.preventDefault();stepField(b);}});
+$('formArea').addEventListener('click',e=>{const d=e.target.closest('[data-d]');if(!d)return;const el=d.closest('.pfield'),ref=pfRef(el),p=BY[sel];
+  if(ref==null)return;pfSet(el.querySelector('input'),ref+(+el.dataset.dir)*(+d.dataset.d)*p.pip);updDist();});
+$('formArea').addEventListener('focusout',e=>{const i=e.target;if(i.matches&&i.matches('.pstep input')){const v=pfVal(i);if(v!=null)pfSet(i,v);updDist();}});
+$('formArea').addEventListener('input',e=>{if(e.target.matches('.pstep input'))updDist();
   if(e.target.id==='fU'||e.target.id==='fM'){const q=Number($('fU').value)*Number($('fM').value);$('fQeq').textContent=Number.isFinite(q)?`＝ ${nf(q)}通貨`:'';}
 });
 $('formArea').addEventListener('change',e=>{
@@ -1560,6 +1601,7 @@ setInterval(()=>{
     else{const sub=dtSim/n;for(let i=0;i<n;i++){simT+=sub*1000;checkMinute();advance(sinceTick+sub);sinceTick=0;tickAll();processOrders();}}
   }
   runInflight();
+  if(frame%3===0)updDist();
   renderStats();renderWatch();renderBoard();renderTables(false);
   if(++frame%2===0)drawChart();
 },100);
